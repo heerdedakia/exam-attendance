@@ -26,9 +26,12 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'coe-secure-attendance-p
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# Initialize and seed database on startup
-init_db()
-seed_demo_data()
+# Initialize and seed database on startup safely
+try:
+    init_db()
+    seed_demo_data()
+except Exception as e:
+    print(f"[STARTUP NOTICE] Database initialization: {e}")
 
 # ----------------- Security Decorators -----------------
 

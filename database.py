@@ -13,17 +13,23 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exam_attenda
 def get_db(db_path=None):
     path = db_path or DB_PATH
     conn = sqlite3.connect(path, timeout=30.0)
-    conn.execute("PRAGMA journal_mode=WAL;")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    except Exception:
+        pass
     conn.execute("PRAGMA busy_timeout=15000;")
     conn.execute("PRAGMA foreign_keys=ON;")
     conn.row_factory = sqlite3.Row
     return conn
 
 def ensure_column_exists(cursor, table_name, column_name, column_def):
-    cursor.execute(f"PRAGMA table_info({table_name});")
-    existing_columns = [row[1] for row in cursor.fetchall()]
-    if column_name not in existing_columns:
-        cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def};")
+    try:
+        cursor.execute(f"PRAGMA table_info({table_name});")
+        existing_columns = [row[1] for row in cursor.fetchall()]
+        if column_name not in existing_columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def};")
+    except Exception:
+        pass
 
 def init_db(db_path=None):
     """
