@@ -4,6 +4,8 @@ __pycache__/
 *.pyd
 test_*.db
 test_*.xlsx
+generated_reports/
+*.xlsx
 *.log
 .vscode/
 .idea/

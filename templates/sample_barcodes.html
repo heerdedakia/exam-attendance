@@ -99,7 +99,48 @@
         </div>
     </div>
 
-    <!-- Section 2: Candidate USN Barcodes (For Answer Booklets / Hall Tickets) -->
+    <!-- Section 2: Physical Answer Booklet Barcodes (Standard 12-Digit & Registry Barcodes) -->
+    <h5 class="fw-bold text-dark mb-3">
+        <i class="fa-solid fa-barcode text-success me-2"></i> Physical Answer Booklet Barcodes (Standard 12-Digit Series)
+    </h5>
+    <p class="text-muted fs-7 mb-3">
+        These correspond to real university examination answer booklets. Point your phone camera or copy and paste these into the manual input box to test instant registration:
+    </p>
+
+    <div class="row g-3 mb-5">
+        {% set booklet_samples = [
+            ('705632441947', 'Standard Booklet Series #1', 'Candidate D-01'),
+            ('705632441948', 'Standard Booklet Series #2', 'Candidate D-02'),
+            ('705632441949', 'Standard Booklet Series #3', 'Candidate D-03'),
+            ('705632441950', 'Standard Booklet Series #4', 'Candidate D-04'),
+            ('BK-2026-0001', 'Alphanumeric Booklet A', 'Candidate D-05'),
+            ('BK-2026-0002', 'Alphanumeric Booklet B', 'Candidate D-06')
+        ] %}
+        {% for b_code, b_title, b_desc in booklet_samples %}
+        <div class="col-md-4 col-sm-6">
+            <div class="card border shadow-sm p-3 text-center bg-white h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle mb-1">{{ b_desc }}</span>
+                    <h6 class="fw-bold text-dark mb-1">{{ b_title }}</h6>
+                    <div class="p-2 bg-light rounded border d-flex flex-column align-items-center justify-content-center my-2">
+                        <svg id="booklet-{{ loop.index }}"></svg>
+                        <div id="qr-booklet-{{ loop.index }}" class="mt-2"></div>
+                    </div>
+                </div>
+                <div>
+                    <code class="fw-bold fs-6 text-primary font-monospace">{{ b_code }}</code>
+                    <div class="mt-2">
+                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="navigator.clipboard.writeText('{{ b_code }}'); Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Copied {{ b_code }}', showConfirmButton: false, timer: 1200});">
+                            <i class="fa-regular fa-copy me-1"></i> Copy Code
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Section 3: Candidate USN Barcodes (For Answer Booklets / Hall Tickets) -->
     <h5 class="fw-bold text-dark mb-3">
         <i class="fa-solid fa-id-card text-primary me-2"></i> Candidate USN Barcodes (Sample Hall Tickets)
     </h5>
@@ -145,6 +186,22 @@
         new QRCode(document.getElementById("qr1"), { text: "QP-2026-CS801-A", width: 90, height: 90 });
         new QRCode(document.getElementById("qr2"), { text: "QP-2026-IS702-B", width: 90, height: 90 });
         new QRCode(document.getElementById("qr3"), { text: "TAMPERED-BARCODE-999", width: 90, height: 90 });
+
+        // Render Physical Answer Booklet Barcodes & QR
+        const booklets = [
+            "705632441947", "705632441948", "705632441949", "705632441950", "BK-2026-0001", "BK-2026-0002"
+        ];
+        booklets.forEach((code, idx) => {
+            const svgId = `#booklet-${idx + 1}`;
+            const qrId = `qr-booklet-${idx + 1}`;
+            if (document.querySelector(svgId)) {
+                JsBarcode(svgId, code, { format: "CODE128", width: 1.5, height: 45, displayValue: true, fontSize: 12 });
+            }
+            const qrElem = document.getElementById(qrId);
+            if (qrElem) {
+                new QRCode(qrElem, { text: code, width: 80, height: 80 });
+            }
+        });
 
         // Render Candidate USN Barcodes
         ['1MS21CS001', '1MS21CS002', '1MS21CS003', '1MS21CS004'].forEach(usn => {
