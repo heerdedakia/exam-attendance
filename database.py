@@ -243,6 +243,12 @@ def init_db(db_path=None):
     ensure_column_exists(cursor, 'students', 'student_master_id', 'INTEGER')
     ensure_column_exists(cursor, 'audit_trail', 'user_id', 'INTEGER')
 
+    # Update older usernames to clean departmental format (e.g. priya.cs, ramesh.cs)
+    cursor.execute("UPDATE users SET username = 'ramesh.cs' WHERE username IN ('teacher_ramesh', 'teacherramesh')")
+    cursor.execute("UPDATE users SET username = 'priya.cs' WHERE username IN ('teacher_priya', 'teacherpriya')")
+    cursor.execute("UPDATE users SET username = 'arun.ec' WHERE username IN ('teacher_arun', 'teacherarun')")
+    cursor.execute("UPDATE users SET username = 'teacher.cs' WHERE username IN ('teachername', 'teacher_name')")
+
     conn.commit()
     conn.close()
 
@@ -322,28 +328,28 @@ def seed_demo_data(db_path=None):
         teacher0_pass = generate_password_hash('TeacherPass@2026')
         cursor.execute('''
         INSERT INTO users (username, email, password_hash, full_name, role, department_id, is_active)
-        VALUES ('teachername', 'teacher@college.edu', ?, 'Faculty Invigilator', 'TEACHER', ?, 1)
+        VALUES ('teacher.cs', 'teacher@college.edu', ?, 'Faculty Invigilator', 'TEACHER', ?, 1)
         ''', (teacher0_pass, dept_map.get('CSE')))
         t0_id = cursor.lastrowid
 
         teacher1_pass = generate_password_hash('TeacherPass@2026')
         cursor.execute('''
         INSERT INTO users (username, email, password_hash, full_name, role, department_id, is_active)
-        VALUES ('teacherramesh', 'ramesh.sharma@college.edu', ?, 'Dr. Ramesh Sharma', 'TEACHER', ?, 1)
+        VALUES ('ramesh.cs', 'ramesh.sharma@college.edu', ?, 'Dr. Ramesh Sharma', 'TEACHER', ?, 1)
         ''', (teacher1_pass, dept_map.get('CSE')))
         t1_id = cursor.lastrowid
 
         teacher2_pass = generate_password_hash('TeacherPass@2026')
         cursor.execute('''
         INSERT INTO users (username, email, password_hash, full_name, role, department_id, is_active)
-        VALUES ('teacherpriya', 'priya.v@college.edu', ?, 'Prof. Priya Venkatesh', 'TEACHER', ?, 1)
+        VALUES ('priya.cs', 'priya.v@college.edu', ?, 'Prof. Priya Venkatesh', 'TEACHER', ?, 1)
         ''', (teacher2_pass, dept_map.get('ISE')))
         t2_id = cursor.lastrowid
 
         teacher3_pass = generate_password_hash('TeacherPass@2026')
         cursor.execute('''
         INSERT INTO users (username, email, password_hash, full_name, role, department_id, is_active)
-        VALUES ('teacherarun', 'arun.kumar@college.edu', ?, 'Prof. Arun Kumar', 'TEACHER', ?, 1)
+        VALUES ('arun.ec', 'arun.kumar@college.edu', ?, 'Prof. Arun Kumar', 'TEACHER', ?, 1)
         ''', (teacher3_pass, dept_map.get('ECE')))
         t3_id = cursor.lastrowid
 

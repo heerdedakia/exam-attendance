@@ -183,8 +183,8 @@ def set_password():
     if not username_or_email:
         return render_template('set_password.html', current_username=current_username, error="Username or email is required.")
 
-    if not new_password or len(new_password) < 6:
-        return render_template('set_password.html', current_username=username_or_email, error="Password must be at least 6 characters long.")
+    if not new_password:
+        return render_template('set_password.html', current_username=username_or_email, error="Password cannot be empty.")
 
     if new_password != confirm_password:
         return render_template('set_password.html', current_username=username_or_email, error="New password and confirm password do not match.")
@@ -224,8 +224,8 @@ def api_user_change_password():
     new_password = data.get('new_password', '').strip()
     confirm_password = data.get('confirm_password', '').strip()
 
-    if not new_password or len(new_password) < 6:
-        return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'}), 400
+    if not new_password:
+        return jsonify({'success': False, 'message': 'Password cannot be empty.'}), 400
 
     if new_password != confirm_password:
         return jsonify({'success': False, 'message': 'Passwords do not match.'}), 400
@@ -298,9 +298,12 @@ def departments_view():
 
     departments = [dict(row) for row in cursor.fetchall()]
     authorized_dept_codes = [d['code'] for d in departments]
+
+    cursor.execute('SELECT id, code, name FROM departments ORDER BY code ASC')
+    all_departments = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
-    return render_template('departments.html', departments=departments, authorized_dept_codes=authorized_dept_codes)
+    return render_template('departments.html', departments=departments, authorized_dept_codes=authorized_dept_codes, all_departments=all_departments)
 
 
 @app.route('/departments/<int:dept_id>/classrooms')
@@ -387,9 +390,11 @@ def classrooms_view(dept_id):
 
         classrooms.append(r)
 
+    cursor.execute('SELECT id, code, name FROM departments ORDER BY code ASC')
+    all_departments = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
-    return render_template('classrooms.html', department=dict(department), classrooms=classrooms)
+    return render_template('classrooms.html', department=dict(department), classrooms=classrooms, all_departments=all_departments)
 
 
 @app.route('/sessions/<int:session_id>/roster')
@@ -678,68 +683,74 @@ def mark_attendance():
                 'message': f'DUPLICATE PREVENTED: Candidate {usn} ({student["student_name"]}) has ALREADY been marked PRESENT at {marked_time} with Booklet Barcode [{existing_barcode}]. Duplicate scan has been rejected.'
             }), 409
 
-        # 4. Strict Barcode Authenticity & Registry Validation (Section 8)
+        # 4. Global Duplicate Barcode Check (Feature 2 & 8)
+        # Check if this booklet barcode is already assigned to any other student in this exam hall
+        cursor.execute('''
+            SELECT s.usn, s.student_name, e.room_number 
+            FROM students s 
+            JOIN exam_sessions e ON s.session_id = e.id 
+            WHERE s.qp_barcode = ? AND s.session_id = ? AND s.usn != ?
+        ''', (qp_barcode, session_id, usn))
+        duplicate_student = cursor.fetchone()
+        if duplicate_student:
+            log_audit(
+                session_id=session_id,
+                action_type='BARCODE_REJECTED',
+                invigilator_id=invigilator_id,
+                invigilator_name=invigilator_name,
+                usn=usn,
+                student_name=student['student_name'],
+                qp_barcode=qp_barcode,
+                reason=f"Duplicate assignment attempt: Booklet [{qp_barcode}] is already held by {duplicate_student['usn']}.",
+                client_ip=request.remote_addr or '127.0.0.1',
+                user_id=user_id,
+                cursor=cursor
+            )
+            conn.commit()
+            return jsonify({
+                'success': False,
+                'duplicate': True,
+                'message': f"DUPLICATE REJECTED: Booklet barcode [{qp_barcode}] has ALREADY been scanned for student {duplicate_student['usn']} ({duplicate_student['student_name']}) in {duplicate_student['room_number']}. Each booklet can only be assigned once!"
+            }), 409
+
+        # Check booklet registry
         cursor.execute('SELECT * FROM booklet_registry WHERE barcode_value = ?', (qp_barcode,))
         booklet = cursor.fetchone()
 
         if not booklet:
-            # Barcode not found in authorized registry
-            log_audit(
-                session_id=session_id,
-                action_type='BARCODE_REJECTED',
-                invigilator_id=invigilator_id,
-                invigilator_name=invigilator_name,
-                usn=usn,
-                student_name=student['student_name'],
-                qp_barcode=qp_barcode,
-                reason='Unknown barcode. Booklet not registered in authorized institutional registry.',
-                client_ip=request.remote_addr or '127.0.0.1',
-                user_id=user_id,
-                cursor=cursor
-            )
-            conn.commit()
-            return jsonify({
-                'success': False,
-                'message': f"UNAUTHORIZED BARCODE: Booklet [{qp_barcode}] is NOT registered in the authorized booklet registry. Please verify the booklet."
-            }), 400
+            # Auto-register physical examination booklet on the fly for real live exams
+            exam_id = session_row['exam_id'] if session_row['exam_id'] else 1
+            cursor.execute('''
+                INSERT INTO booklet_registry (barcode_value, exam_id, batch_number, status)
+                VALUES (?, ?, 'PHYSICAL-EXAM-SCAN', 'AVAILABLE')
+            ''', (qp_barcode, exam_id))
+        else:
+            if booklet['status'] == 'ASSIGNED' and booklet['assigned_usn'] != usn:
+                log_audit(
+                    session_id=session_id,
+                    action_type='BARCODE_REJECTED',
+                    invigilator_id=invigilator_id,
+                    invigilator_name=invigilator_name,
+                    usn=usn,
+                    student_name=student['student_name'],
+                    qp_barcode=qp_barcode,
+                    reason=f"Attempted duplicate assignment: Booklet already assigned to candidate {booklet['assigned_usn']}.",
+                    client_ip=request.remote_addr or '127.0.0.1',
+                    user_id=user_id,
+                    cursor=cursor
+                )
+                conn.commit()
+                return jsonify({
+                    'success': False,
+                    'duplicate': True,
+                    'message': f"BOOKLET ALREADY ASSIGNED: Barcode [{qp_barcode}] has ALREADY been assigned to candidate {booklet['assigned_usn']}. Duplicate assignment rejected."
+                }), 409
 
-        # Check if booklet is already assigned elsewhere (duplicate booklet assignment prevention)
-        if booklet['status'] == 'ASSIGNED' and booklet['assigned_usn'] != usn:
-            log_audit(
-                session_id=session_id,
-                action_type='BARCODE_REJECTED',
-                invigilator_id=invigilator_id,
-                invigilator_name=invigilator_name,
-                usn=usn,
-                student_name=student['student_name'],
-                qp_barcode=qp_barcode,
-                reason=f"Attempted duplicate assignment: Booklet already assigned to candidate {booklet['assigned_usn']}.",
-                client_ip=request.remote_addr or '127.0.0.1',
-                user_id=user_id,
-                cursor=cursor
-            )
-            conn.commit()
-            return jsonify({
-                'success': False,
-                'duplicate': True,
-                'message': f"BOOKLET ALREADY ASSIGNED: Barcode [{qp_barcode}] has ALREADY been assigned to candidate {booklet['assigned_usn']}. Duplicate assignment rejected."
-            }), 409
-
-        if booklet['status'] in ('DAMAGED', 'VOID'):
-            return jsonify({
-                'success': False,
-                'message': f"VOID BOOKLET: Barcode [{qp_barcode}] is marked as '{booklet['status']}' in the registry and cannot be used."
-            }), 400
-
-        # Check if another student in the same session is already holding this barcode
-        cursor.execute('SELECT usn, student_name FROM students WHERE session_id = ? AND qp_barcode = ? AND usn != ?', (session_id, qp_barcode, usn))
-        conflict = cursor.fetchone()
-        if conflict:
-            return jsonify({
-                'success': False,
-                'duplicate': True,
-                'message': f"CONFLICT PREVENTED: Booklet [{qp_barcode}] is already associated with student {conflict['usn']} ({conflict['student_name']}) in this room."
-            }), 409
+            if booklet['status'] in ('DAMAGED', 'VOID'):
+                return jsonify({
+                    'success': False,
+                    'message': f"VOID BOOKLET: Barcode [{qp_barcode}] is marked as '{booklet['status']}' in the registry and cannot be used."
+                }), 400
 
         # 5. Atomic Transaction: Record attendance and update registry
         now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1426,7 +1437,8 @@ def admin_department_create():
 
 
 @app.route('/admin/classrooms/create', methods=['POST'])
-@admin_required
+@app.route('/classrooms/create', methods=['POST'])
+@login_required
 def admin_classroom_create():
     department_id = request.form.get('department_id', type=int)
     room_number = (request.form.get('room_number') or '').strip()
@@ -1436,7 +1448,7 @@ def admin_classroom_create():
 
     if not department_id or not room_number:
         flash('Department and room number are required.', 'danger')
-        return redirect(redirect_url or url_for('admin_departments_list'))
+        return redirect(redirect_url or url_for('departments_view'))
 
     conn = get_db()
     cursor = conn.cursor()
@@ -1452,41 +1464,51 @@ def admin_classroom_create():
     finally:
         conn.close()
 
-    return redirect(redirect_url or url_for('admin_departments_list'))
+    return redirect(redirect_url or url_for('departments_view'))
 
 
 @app.route('/admin/classrooms/<int:room_id>/edit', methods=['POST'])
-@admin_required
+@app.route('/classrooms/<int:room_id>/edit', methods=['POST'])
+@login_required
 def admin_classroom_edit(room_id):
     room_number = (request.form.get('room_number') or '').strip()
     building = (request.form.get('building') or '').strip()
     capacity = request.form.get('capacity', 40, type=int)
+    department_id = request.form.get('department_id', type=int)
     redirect_url = request.form.get('redirect_url')
 
     if not room_number or capacity < 1:
         flash('Valid room number and positive capacity are required.', 'danger')
-        return redirect(redirect_url or url_for('admin_departments_list'))
+        return redirect(redirect_url or url_for('departments_view'))
 
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute('''
-            UPDATE classrooms 
-            SET room_number = ?, building = ?, capacity = ?
-            WHERE id = ?
-        ''', (room_number, building, capacity, room_id))
+        if department_id:
+            cursor.execute('''
+                UPDATE classrooms 
+                SET room_number = ?, building = ?, capacity = ?, department_id = ?
+                WHERE id = ?
+            ''', (room_number, building, capacity, department_id, room_id))
+        else:
+            cursor.execute('''
+                UPDATE classrooms 
+                SET room_number = ?, building = ?, capacity = ?
+                WHERE id = ?
+            ''', (room_number, building, capacity, room_id))
         conn.commit()
-        flash(f"Classroom '{room_number}' updated successfully (Capacity increased to {capacity} desks).", 'success')
+        flash(f"Classroom '{room_number}' updated successfully (Capacity: {capacity} desks).", 'success')
     except sqlite3.IntegrityError:
         flash(f"Classroom name '{room_number}' conflicts with an existing room in this department.", 'danger')
     finally:
         conn.close()
 
-    return redirect(redirect_url or url_for('admin_departments_list'))
+    return redirect(redirect_url or url_for('departments_view'))
 
 
 @app.route('/admin/classrooms/<int:room_id>/delete', methods=['POST'])
-@admin_required
+@app.route('/classrooms/<int:room_id>/delete', methods=['POST'])
+@login_required
 def admin_classroom_delete(room_id):
     redirect_url = request.form.get('redirect_url')
     conn = get_db()
@@ -1504,7 +1526,7 @@ def admin_classroom_delete(room_id):
     finally:
         conn.close()
 
-    return redirect(redirect_url or url_for('admin_departments_list'))
+    return redirect(redirect_url or url_for('departments_view'))
 
 
 @app.route('/admin/exams')

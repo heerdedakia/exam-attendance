@@ -11,6 +11,7 @@
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     color: #1e293b;
+    background-color: #f8fafc;
 }
 
 .bg-navy {
@@ -32,7 +33,7 @@ body {
 }
 
 .card {
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid #e2e8f0;
 }
 
@@ -68,17 +69,18 @@ body {
 }
 
 /* Scanner Viewport */
-#reader {
+#reader, #cameraViewport {
     width: 100%;
     min-height: 250px;
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
     background-color: #000;
 }
 
-#reader video {
-    border-radius: 8px;
+#reader video, #cameraViewport video {
+    border-radius: 10px;
     object-fit: cover;
+    width: 100% !important;
 }
 
 .scanner-crosshair {
@@ -93,7 +95,7 @@ body {
     right: 10%;
     height: 2px;
     background: #ef4444;
-    box-shadow: 0 0 8px #ef4444;
+    box-shadow: 0 0 10px #ef4444;
     animation: scanAnim 2s infinite ease-in-out alternate;
     pointer-events: none;
 }
@@ -121,4 +123,133 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: #475569;
+}
+
+/* ================= Mobile-First Responsive Styles ================= */
+@media (max-width: 767.98px) {
+    /* Responsive Header & Action Buttons */
+    .container-fluid {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    /* Transform Roster Table into Mobile Student Cards */
+    #rosterTable thead {
+        display: none !important;
+    }
+
+    #rosterTable, #rosterTable tbody {
+        display: block;
+        width: 100% !important;
+    }
+
+    #rosterTable tbody tr.roster-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "desk status"
+            "usn status"
+            "name name"
+            "barcode barcode"
+            "time time"
+            "action action";
+        gap: 3px 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        margin: 0 0 10px 0;
+        padding: 12px 14px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+    }
+
+    #rosterTable tbody tr.roster-row.table-primary,
+    #rosterTable tbody tr.roster-row:hover {
+        border-color: #2563eb !important;
+        background-color: #eff6ff !important;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25) !important;
+    }
+
+    #rosterTable tbody tr.roster-row td {
+        display: flex;
+        align-items: center;
+        border: none !important;
+        padding: 2px 0 !important;
+    }
+
+    #rosterTable tbody tr.roster-row td.desk-cell {
+        grid-area: desk;
+        font-size: 0.8rem;
+    }
+
+    #rosterTable tbody tr.roster-row td.desk-cell::before {
+        content: "Desk: ";
+        font-weight: 500;
+        color: #64748b;
+        margin-right: 4px;
+    }
+
+    #rosterTable tbody tr.roster-row td.usn-cell {
+        grid-area: usn;
+        font-size: 0.95rem;
+    }
+
+    #rosterTable tbody tr.roster-row td.name-cell {
+        grid-area: name;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #0f172a;
+        padding-top: 3px !important;
+    }
+
+    #rosterTable tbody tr.roster-row td.status-cell {
+        grid-area: status;
+        justify-content: flex-end;
+    }
+
+    #rosterTable tbody tr.roster-row td.barcode-cell {
+        grid-area: barcode;
+        font-size: 0.85rem;
+    }
+
+    #rosterTable tbody tr.roster-row td.barcode-cell::before {
+        content: "Booklet: ";
+        font-weight: 600;
+        color: #64748b;
+        margin-right: 6px;
+    }
+
+    #rosterTable tbody tr.roster-row td.time-cell {
+        grid-area: time;
+        font-size: 0.75rem;
+    }
+
+    #rosterTable tbody tr.roster-row td.time-cell::before {
+        content: "Scanned: ";
+        color: #94a3b8;
+        margin-right: 4px;
+    }
+
+    #rosterTable tbody tr.roster-row td.action-cell {
+        grid-area: action;
+        justify-content: stretch;
+        margin-top: 8px;
+        padding-top: 8px !important;
+        border-top: 1px solid #f1f5f9 !important;
+    }
+
+    #rosterTable tbody tr.roster-row td.action-cell .btn-group {
+        width: 100%;
+        display: flex;
+        gap: 6px;
+    }
+
+    #rosterTable tbody tr.roster-row td.action-cell .btn {
+        flex: 1;
+        padding: 8px 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 8px !important;
+    }
 }

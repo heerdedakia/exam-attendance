@@ -30,11 +30,11 @@
                     <form method="POST" action="/login" id="loginForm" novalidate>
                         <!-- Username / Institutional Email -->
                         <div class="mb-3">
-                            <label for="username" class="form-label fs-7 fw-bold text-muted text-uppercase">Username or Email</label>
+                            <label for="username" class="form-label fs-7 fw-bold text-muted text-uppercase">Username or Institutional Email</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-regular fa-user"></i></span>
                                 <input type="text" class="form-control border-start-0" id="username" name="username" 
-                                       placeholder="e.g. teachername, teacherramesh, or admin" required autofocus value="{{ username or '' }}">
+                                       placeholder="e.g. priya.cs, ramesh.cs, or admin" required autofocus value="{{ username or '' }}">
                             </div>
                         </div>
 
@@ -71,12 +71,16 @@
                         </div>
                         <div class="d-grid gap-1">
                             <button type="button" class="btn btn-xs btn-outline-primary text-start fs-7 py-1 px-2" 
-                                    onclick="fillCredentials('teachername', 'TeacherPass@2026')">
-                                <span class="fw-bold"><i class="fa-solid fa-chalkboard-user text-primary me-1"></i> Teacher:</span> <code>teachername</code> (Pass: TeacherPass@2026)
+                                    onclick="fillCredentials('priya.cs', 'TeacherPass@2026')">
+                                <span class="fw-bold"><i class="fa-solid fa-chalkboard-user text-primary me-1"></i> Faculty (ISE):</span> <code>priya.cs</code> (Pass: TeacherPass@2026)
                             </button>
                             <button type="button" class="btn btn-xs btn-outline-success text-start fs-7 py-1 px-2" 
-                                    onclick="fillCredentials('teacherramesh', 'TeacherPass@2026')">
-                                <span class="fw-bold"><i class="fa-solid fa-user me-1"></i> Teacher (CSE):</span> <code>teacherramesh</code> (Pass: TeacherPass@2026)
+                                    onclick="fillCredentials('ramesh.cs', 'TeacherPass@2026')">
+                                <span class="fw-bold"><i class="fa-solid fa-user me-1"></i> Faculty (CSE):</span> <code>ramesh.cs</code> (Pass: TeacherPass@2026)
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-info text-start fs-7 py-1 px-2" 
+                                    onclick="fillCredentials('arun.ec', 'TeacherPass@2026')">
+                                <span class="fw-bold"><i class="fa-solid fa-user me-1"></i> Faculty (ECE):</span> <code>arun.ec</code> (Pass: TeacherPass@2026)
                             </button>
                             <button type="button" class="btn btn-xs btn-outline-danger text-start fs-7 py-1 px-2" 
                                     onclick="fillCredentials('admin', 'AdminPassword@2026')">
@@ -85,7 +89,7 @@
                         </div>
                         <div class="text-center mt-2">
                             <a href="/set_password" class="fs-7 text-muted text-decoration-none">
-                                <i class="fa-solid fa-circle-question me-1"></i>Need to set or change your teacher password? Click here.
+                                <i class="fa-solid fa-circle-question me-1"></i>Need to set or change your password? Click here.
                             </a>
                         </div>
                     </div>
