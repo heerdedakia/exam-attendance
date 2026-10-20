@@ -29,9 +29,11 @@
                 </div>
                 
                 <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
+                    {% if session.get('role') == 'ADMIN' %}
                     <button class="btn btn-primary btn-sm px-3 fw-semibold flex-grow-1 flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#quickAddRoomModal">
                         <i class="fa-solid fa-plus me-1"></i> Add Classroom
                     </button>
+                    {% endif %}
                     <a href="/departments" class="btn btn-outline-secondary btn-sm px-3 flex-grow-1 flex-md-grow-0">
                         <i class="fa-solid fa-arrow-left me-1"></i> Switch Department
                     </a>
@@ -63,10 +65,12 @@
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-7 font-monospace px-2 py-1">
                                     <i class="fa-solid fa-chair me-1"></i> {{ room.capacity }} Desks
                                 </span>
+                                {% if session.get('role') == 'ADMIN' %}
                                 <button class="btn btn-outline-secondary btn-sm py-1 px-2 fs-7" title="Edit room, change capacity or move department"
                                         onclick="openEditRoomModal({{ room.classroom_id }}, '{{ room.room_number }}', '{{ room.building or '' }}', {{ room.capacity }}, {{ department.id }})">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -247,7 +251,8 @@
     </div>
 </div>
 
-<!-- Quick Add Classroom Modal (Available to Teachers and Admins) -->
+{% if session.get('role') == 'ADMIN' %}
+<!-- Quick Add Classroom Modal (Administrator Only) -->
 <div class="modal fade" id="quickAddRoomModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
@@ -339,6 +344,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 {% endblock %}
 

@@ -22,10 +22,10 @@
                 </div>
                 
                 <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+                    {% if session.get('role') == 'ADMIN' %}
                     <button class="btn btn-primary btn-sm px-3 fw-semibold flex-grow-1 flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addRoomGlobalModal">
                         <i class="fa-solid fa-door-open me-1"></i> + Add Exam Hall / Room
                     </button>
-                    {% if session.get('role') == 'ADMIN' %}
                     <a href="/admin/departments" class="btn btn-outline-secondary btn-sm px-3 flex-grow-1 flex-md-grow-0">
                         <i class="fa-solid fa-gear me-1"></i> Admin Panel
                     </a>
@@ -90,10 +90,12 @@
                             <a href="/departments/{{ dept.id }}/classrooms" class="btn btn-primary btn-sm px-3 fw-semibold flex-grow-1 py-2">
                                 Enter Rooms <i class="fa-solid fa-arrow-right ms-1"></i>
                             </a>
+                            {% if session.get('role') == 'ADMIN' %}
                             <button class="btn btn-outline-primary btn-sm px-2 py-2" title="Add a room to this department"
                                     onclick="openAddRoomForDept({{ dept.id }}, '{{ dept.name }} ({{ dept.code }})')">
                                 <i class="fa-solid fa-plus me-1"></i> Room
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -113,6 +115,7 @@
 
 </div>
 
+{% if session.get('role') == 'ADMIN' %}
 <!-- Quick Add Classroom / Room Modal -->
 <div class="modal fade" id="addRoomGlobalModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -169,4 +172,5 @@
         new bootstrap.Modal(document.getElementById('addRoomGlobalModal')).show();
     }
 </script>
+{% endif %}
 {% endblock %}

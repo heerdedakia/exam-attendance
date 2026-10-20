@@ -63,26 +63,12 @@ def admin_required(f):
 def check_department_access(dept_id):
     """
     Returns True if current user is authorized for the department.
-    Admins have access to all departments.
-    Teachers only have access to assigned departments.
+    All logged-in faculty/invigilators and administrators have institutional 
+    access to all departments and examination halls for invigilation duties.
     """
     if not session.get('user_id'):
-        return True # Default for non-session API compatibility
-    if session.get('role') == 'ADMIN':
         return True
-    
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT 1 FROM teacher_department_access 
-        WHERE user_id = ? AND department_id = ?
-        UNION
-        SELECT 1 FROM users
-        WHERE id = ? AND department_id = ?
-    ''', (session['user_id'], dept_id, session['user_id'], dept_id))
-    has_access = cursor.fetchone() is not None
-    conn.close()
-    return has_access
+    return True
 
 def check_session_access(session_id):
     """
@@ -257,50 +243,25 @@ def root_index():
 def departments_view():
     """
     Department Selection Dashboard (Requirement 4).
-    Displays cards for academic departments available to the user.
+    Displays cards for academic departments available across the institution.
+    All faculty invigilators have duty access across all departments.
     """
     conn = get_db()
     cursor = conn.cursor()
 
-    is_admin = session.get('role') == 'ADMIN'
-    user_id = session.get('user_id')
-
-    # Query authorized departments
-    if is_admin:
-        cursor.execute('''
-            SELECT d.*, 
-                   COUNT(DISTINCT c.id) as classroom_count,
-                   COUNT(DISTINCT s.id) as candidate_count
-            FROM departments d
-            LEFT JOIN classrooms c ON c.department_id = d.id
-            LEFT JOIN students_master s ON s.department_id = d.id
-            GROUP BY d.id
-            ORDER BY d.code ASC
-        ''')
-    else:
-        cursor.execute('''
-            SELECT d.*, 
-                   COUNT(DISTINCT c.id) as classroom_count,
-                   COUNT(DISTINCT s.id) as candidate_count
-            FROM departments d
-            LEFT JOIN classrooms c ON c.department_id = d.id
-            LEFT JOIN students_master s ON s.department_id = d.id
-            WHERE d.id IN (
-                SELECT department_id FROM teacher_department_access WHERE user_id = ?
-                UNION
-                SELECT department_id FROM users WHERE id = ?
-                UNION
-                SELECT department_id FROM exam_sessions WHERE invigilator_user_id = ?
-            )
-            GROUP BY d.id
-            ORDER BY d.code ASC
-        ''', (user_id, user_id, user_id))
-
+    cursor.execute('''
+        SELECT d.*, 
+               COUNT(DISTINCT c.id) as classroom_count,
+               COUNT(DISTINCT s.id) as candidate_count
+        FROM departments d
+        LEFT JOIN classrooms c ON c.department_id = d.id
+        LEFT JOIN students_master s ON s.department_id = d.id
+        GROUP BY d.id
+        ORDER BY d.code ASC
+    ''')
     departments = [dict(row) for row in cursor.fetchall()]
     authorized_dept_codes = [d['code'] for d in departments]
-
-    cursor.execute('SELECT id, code, name FROM departments ORDER BY code ASC')
-    all_departments = [dict(row) for row in cursor.fetchall()]
+    all_departments = departments
     conn.close()
 
     return render_template('departments.html', departments=departments, authorized_dept_codes=authorized_dept_codes, all_departments=all_departments)
@@ -1438,7 +1399,7 @@ def admin_department_create():
 
 @app.route('/admin/classrooms/create', methods=['POST'])
 @app.route('/classrooms/create', methods=['POST'])
-@login_required
+@admin_required
 def admin_classroom_create():
     department_id = request.form.get('department_id', type=int)
     room_number = (request.form.get('room_number') or '').strip()
@@ -1469,7 +1430,7 @@ def admin_classroom_create():
 
 @app.route('/admin/classrooms/<int:room_id>/edit', methods=['POST'])
 @app.route('/classrooms/<int:room_id>/edit', methods=['POST'])
-@login_required
+@admin_required
 def admin_classroom_edit(room_id):
     room_number = (request.form.get('room_number') or '').strip()
     building = (request.form.get('building') or '').strip()
@@ -1508,7 +1469,7 @@ def admin_classroom_edit(room_id):
 
 @app.route('/admin/classrooms/<int:room_id>/delete', methods=['POST'])
 @app.route('/classrooms/<int:room_id>/delete', methods=['POST'])
-@login_required
+@admin_required
 def admin_classroom_delete(room_id):
     redirect_url = request.form.get('redirect_url')
     conn = get_db()
