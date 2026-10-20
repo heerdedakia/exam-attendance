@@ -8,8 +8,26 @@ import io
 import csv
 import re
 import sqlite3
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from functools import wraps
+
+# Force Indian Standard Time (IST, UTC+05:30) for Indian college examination system
+try:
+    os.environ['TZ'] = 'Asia/Kolkata'
+    if hasattr(time, 'tzset'):
+        time.tzset()
+except Exception:
+    pass
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """
+    Returns current datetime in Indian Standard Time (IST, UTC+05:30)
+    as a naive datetime matching scheduled exam timestamps.
+    """
+    return datetime.now(IST).replace(tzinfo=None)
 from flask import (
     Flask, render_template, request, jsonify, send_file, redirect,
     url_for, session, flash, Response, has_request_context
@@ -165,7 +183,7 @@ def get_session_window_status(session_row):
         if not session_row.get('start_time'): start_time_str = '09:30'
         if not session_row.get('end_time'): end_time_str = '12:30'
 
-    now = datetime.now()
+    now = get_ist_now()
     is_admin = False
     if has_request_context():
         try:
@@ -185,6 +203,7 @@ def get_session_window_status(session_row):
         
         start_display = start_dt.strftime("%I:%M %p")
         end_display = end_dt.strftime("%I:%M %p")
+        ist_now_display = now.strftime("%I:%M %p")
         
         if now < start_dt:
             is_today = (now.date() == start_dt.date())
@@ -199,7 +218,8 @@ def get_session_window_status(session_row):
                 'label': f'Opens {when_txt}',
                 'start_display': start_display,
                 'end_display': end_display,
-                'message': f"Exam attendance opens on {exam_date_str} at {start_display}. (Current server time: {now.strftime('%I:%M %p')})"
+                'current_time_ist': ist_now_display,
+                'message': f"Exam attendance opens on {exam_date_str} at {start_display}. (Current server time: {ist_now_display} IST)"
             }
         elif start_dt <= now <= end_dt:
             return {
@@ -212,7 +232,8 @@ def get_session_window_status(session_row):
                 'label': f'Active Exam ({start_display} - {end_display})',
                 'start_display': start_display,
                 'end_display': end_display,
-                'message': f"Attendance window is currently active ({start_display} - {end_display})."
+                'current_time_ist': ist_now_display,
+                'message': f"Attendance window is currently active ({start_display} - {end_display} IST)."
             }
         else:
             return {
@@ -225,7 +246,8 @@ def get_session_window_status(session_row):
                 'label': f'Concluded at {end_display}',
                 'start_display': start_display,
                 'end_display': end_display,
-                'message': f"Exam session concluded at {end_display} on {exam_date_str}."
+                'current_time_ist': ist_now_display,
+                'message': f"Exam session concluded at {end_display} on {exam_date_str}. (Current server time: {ist_now_display} IST)"
             }
     except Exception as e:
         return {
@@ -588,7 +610,7 @@ def create_or_clone_session():
     source_session_id = data.get('source_session_id')
     course_code = (data.get('course_code') or '').strip().upper()
     course_name = (data.get('course_name') or '').strip()
-    exam_date = (data.get('exam_date') or '').strip() or datetime.now().strftime("%Y-%m-%d")
+    exam_date = (data.get('exam_date') or '').strip() or get_ist_now().strftime("%Y-%m-%d")
     start_time = normalize_time_str(data.get('start_time'), default='09:30')
     end_time = normalize_time_str(data.get('end_time'), default='12:30')
     exam_session = (data.get('exam_session') or '').strip() or f"Session ({start_time} - {end_time})"
@@ -949,7 +971,7 @@ def mark_attendance():
                 }), 400
 
         # 5. Atomic Transaction: Record attendance and update registry
-        now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_ts = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute('''
             UPDATE students
@@ -1056,7 +1078,7 @@ def mark_absent():
 
         old_barcode = student['qp_barcode']
         old_status = student['attendance_status']
-        now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_ts = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
 
         # If student previously had an assigned booklet, release it in the registry
         if old_barcode:
@@ -1154,7 +1176,7 @@ def redo_attendance():
 
         old_status = student['attendance_status']
         old_barcode = student['qp_barcode']
-        now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_ts = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
 
         # If correcting to PRESENT, validate new booklet barcode
         if new_status == 'PRESENT':
@@ -1322,7 +1344,7 @@ def confirm_lock():
             }), 400
 
         # Lock session
-        now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_ts = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute('''
             UPDATE exam_sessions
             SET status = 'LOCKED',
@@ -1762,7 +1784,7 @@ def admin_exams_list():
 
     conn.close()
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = get_ist_now().strftime("%Y-%m-%d")
 
     return render_template(
         'admin/admin_exams.html',
@@ -2460,7 +2482,7 @@ def evaluator_cross_verify():
             ''', (usn,))
             record = cursor.fetchone()
 
-    now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_ts = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
 
     if not record:
         status = 'DISCREPANCY_FLAGGED'

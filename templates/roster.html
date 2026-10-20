@@ -57,7 +57,7 @@
                     <div class="text-muted fs-7 d-flex flex-wrap gap-2 gap-md-3 mt-2">
                         <span><i class="fa-solid fa-door-open me-1 text-primary"></i> <strong>Room:</strong> {{ session_data.room_number }}</span>
                         <span><i class="fa-regular fa-calendar me-1 text-primary"></i> <strong>Date:</strong> {{ session_data.exam_date }}</span>
-                        <span><i class="fa-regular fa-clock me-1 text-primary"></i> <strong>Exam Window:</strong> {{ session_data.time_window.start_display }} - {{ session_data.time_window.end_display }}</span>
+                        <span><i class="fa-regular fa-clock me-1 text-primary"></i> <strong>Exam Window:</strong> {{ session_data.time_window.start_display }} - {{ session_data.time_window.end_display }} IST</span>
                         <span><i class="fa-solid fa-user-tie me-1 text-primary"></i> <strong>Invigilator:</strong> {{ session_data.invigilator_name }}</span>
                     </div>
                 </div>
@@ -147,7 +147,7 @@
                 {{ session_data.time_window.message }}
             </div>
             <div class="fs-7 text-muted">
-                <i class="fa-solid fa-circle-info me-1 text-primary"></i> Attendance recording and barcode scanning unlock strictly during scheduled hours (<strong>{{ session_data.time_window.start_display }} – {{ session_data.time_window.end_display }}</strong> on <strong>{{ session_data.exam_date }}</strong>). If you are testing, please request the COE Administrator to adjust the exam timing.
+                <i class="fa-solid fa-circle-info me-1 text-primary"></i> Attendance recording and barcode scanning unlock strictly during scheduled hours (<strong>{{ session_data.time_window.start_display }} – {{ session_data.time_window.end_display }} IST</strong> on <strong>{{ session_data.exam_date }}</strong>). If you are testing, please request the COE Administrator to adjust the exam timing.
             </div>
         </div>
     </div>

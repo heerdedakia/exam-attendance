@@ -5,8 +5,23 @@ departments, classrooms, exams, booklet barcode registry, and audit logging.
 """
 import sqlite3
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timezone, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Force Indian Standard Time (IST) on Linux / Cloud containers (Render)
+try:
+    os.environ['TZ'] = 'Asia/Kolkata'
+    if hasattr(time, 'tzset'):
+        time.tzset()
+except Exception:
+    pass
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Returns current datetime in Indian Standard Time (IST, UTC+05:30) as naive datetime."""
+    return datetime.now(IST).replace(tzinfo=None)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exam_attendance.db')
 
@@ -263,7 +278,7 @@ def init_db(db_path=None):
 def log_audit(session_id, action_type, invigilator_id, invigilator_name, usn=None, student_name=None,
               old_status=None, new_status=None, qp_barcode=None, reason=None, client_ip="127.0.0.1",
               user_id=None, cursor=None):
-    now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_ts = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
 
     insert_sql = '''
     INSERT INTO audit_trail (
@@ -391,7 +406,7 @@ def seed_demo_data(db_path=None):
     # 5. Seed Exam Sessions
     cursor.execute('SELECT COUNT(*) FROM exam_sessions')
     if cursor.fetchone()[0] == 0:
-        now_str = datetime.now().strftime("%Y-%m-%d")
+        now_str = get_ist_now().strftime("%Y-%m-%d")
 
         cursor.execute('''
         INSERT INTO exam_sessions (
@@ -501,7 +516,7 @@ def seed_demo_data(db_path=None):
         base_s = cursor.fetchone()
         if base_s:
             base_id = base_s[0]
-            now_str = datetime.now().strftime("%Y-%m-%d")
+            now_str = get_ist_now().strftime("%Y-%m-%d")
             additional_subjects = [
                 ('MAT301', 'Advanced Engineering Mathematics', 'Afternoon (02:00 PM - 05:00 PM)', 'QP-2026-MAT301-A'),
                 ('CS302', 'Data Structures & Algorithms (DSA)', 'Morning (09:30 AM - 12:30 PM)', 'QP-2026-CS302-A'),
