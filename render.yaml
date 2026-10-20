@@ -2,6 +2,7 @@ services:
   - type: web
     name: exam-attendance
     env: python
+    autoDeploy: true
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn wsgi:app
     envVars:
