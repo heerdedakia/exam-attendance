@@ -293,13 +293,13 @@
                             <i class="fa-solid fa-lock me-1"></i> Absent
                         </button>
                         {% else %}
-                        <button class="btn btn-primary fw-semibold flex-grow-1 py-2 px-3" id="btnLaunchScanner" onclick="openScannerForSelected()" disabled>
+                        <button class="btn btn-primary fw-semibold flex-grow-1 py-2 px-3 shadow-sm" id="btnLaunchScanner" onclick="openScannerForSelected()">
                             <i class="fa-solid fa-camera me-1"></i> Scan Booklet Barcode
                         </button>
-                        <button class="btn btn-outline-danger btn-sm py-2 px-3 flex-grow-1 flex-md-grow-0" id="btnMarkAbsentQuick" onclick="markSelectedAbsent()" disabled>
+                        <button class="btn btn-outline-danger btn-sm py-2 px-3 flex-grow-1 flex-md-grow-0" id="btnMarkAbsentQuick" onclick="markSelectedAbsent()">
                             <i class="fa-solid fa-user-xmark me-1"></i> Absent
                         </button>
-                        <button class="btn btn-outline-secondary btn-sm py-2 px-3 flex-grow-1 flex-md-grow-0" id="btnRedoQuick" onclick="openRedoForSelected()" disabled>
+                        <button class="btn btn-outline-secondary btn-sm py-2 px-3 flex-grow-1 flex-md-grow-0" id="btnRedoQuick" onclick="openRedoForSelected()">
                             <i class="fa-solid fa-rotate-left me-1"></i> Redo
                         </button>
                         {% endif %}
@@ -399,14 +399,14 @@
                                         <i class="fa-solid fa-lock me-1"></i><span class="d-none d-sm-inline">Locked</span>
                                     </button>
                                     {% else %}
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary btn-sm" title="Scan Booklet Barcode" onclick="triggerScanFor('{{ s.usn }}')">
-                                            <i class="fa-solid fa-camera me-1"></i><span class="d-none d-sm-inline">Scan</span>
+                                    <div class="btn-group btn-group-sm w-100">
+                                        <button class="btn btn-primary btn-sm fw-semibold px-3 py-1" title="Scan Booklet Barcode" onclick="event.stopPropagation(); triggerScanFor('{{ s.usn }}')">
+                                            <i class="fa-solid fa-camera me-1"></i><span>Scan</span>
                                         </button>
-                                        <button class="btn btn-outline-danger btn-sm" title="Mark Candidate Absent" onclick="selectRosterStudent('{{ s.usn }}'); markSelectedAbsent();">
-                                            <i class="fa-solid fa-user-xmark me-1"></i><span class="d-none d-sm-inline">Absent</span>
+                                        <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Mark Candidate Absent" onclick="event.stopPropagation(); selectRosterStudent('{{ s.usn }}'); markSelectedAbsent();">
+                                            <i class="fa-solid fa-user-xmark me-1"></i><span>Absent</span>
                                         </button>
-                                        <button class="btn btn-outline-secondary btn-sm" title="Correct / Redo Attendance" onclick="triggerRedoFor('{{ s.usn }}')">
+                                        <button class="btn btn-outline-secondary btn-sm px-2 py-1" title="Correct / Redo Attendance" onclick="event.stopPropagation(); triggerRedoFor('{{ s.usn }}')">
                                             <i class="fa-solid fa-rotate-left"></i>
                                         </button>
                                     </div>
@@ -448,6 +448,18 @@
                 </div>
 
                 <!-- Camera Viewport Box -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fs-7 text-muted fw-semibold"><i class="fa-solid fa-video text-primary me-1"></i> Live Barcode Lens</span>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" id="btnFlipCamera" onclick="switchCameraFacing()" title="Switch camera front/back">
+                            <i class="fa-solid fa-camera-rotate me-1"></i> Flip Camera
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" id="btnToggleTorch" onclick="toggleCameraTorch()" title="Turn flashlight on/off">
+                            <i class="fa-regular fa-lightbulb me-1"></i> Flash
+                        </button>
+                    </div>
+                </div>
+
                 <div class="position-relative mb-3">
                     <div id="cameraViewport" class="rounded-3 overflow-hidden bg-black text-center text-white d-flex align-items-center justify-content-center" style="min-height: 280px;">
                         <span class="text-white-50"><i class="fa-solid fa-circle-notch fa-spin me-2"></i> Initializing camera...</span>
@@ -456,7 +468,7 @@
                 </div>
 
                 <!-- Camera Error Alert Banner -->
-                <div id="cameraErrorBanner" class="alert alert-danger py-2 px-3 fs-7 d-none mb-3" role="alert">
+                <div id="cameraErrorBanner" class="alert alert-warning py-2 px-3 fs-7 d-none mb-3" role="alert">
                     <i class="fa-solid fa-triangle-exclamation me-1"></i>
                     <span id="cameraErrorMessage">Camera permission denied or camera unavailable.</span>
                 </div>
@@ -467,25 +479,28 @@
                 </div>
 
                 <div class="text-muted fs-7 text-center mt-2">
-                    <i class="fa-solid fa-qrcode text-secondary me-1"></i> Point camera at the barcode on the student's physical answer booklet.
+                    <i class="fa-solid fa-qrcode text-secondary me-1"></i> Hold booklet barcode steadily inside the box. Any standard 1D/2D university booklet barcode is supported.
                 </div>
 
                 <!-- Manual Barcode Input Fallback -->
                 <div class="position-relative text-center my-3">
                     <hr class="text-muted">
-                    <span class="position-absolute top-50 start-50 translate-middle bg-white px-2 fs-7 text-muted fw-bold">OR ENTER MANUALLY</span>
+                    <span class="position-absolute top-50 start-50 translate-middle bg-white px-2 fs-7 text-muted fw-bold">OR ENTER / PASTE MANUALLY</span>
                 </div>
 
                 <form id="manualBarcodeForm" onsubmit="submitManualBarcode(event)" class="mb-2">
                     <div class="input-group">
                         <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-barcode text-primary"></i></span>
                         <input type="text" class="form-control font-monospace" id="manualBarcodeInput" placeholder="Type or paste barcode (e.g. 705632441947)" autocomplete="off">
+                        <button class="btn btn-outline-secondary px-2" type="button" onclick="pasteBarcodeFromClipboard()" title="Paste from clipboard">
+                            <i class="fa-solid fa-paste me-1"></i> Paste
+                        </button>
                         <button class="btn btn-primary fw-semibold px-3" type="submit" id="btnSubmitManualBarcode">
-                            <i class="fa-solid fa-check me-1"></i> Submit
+                            <i class="fa-solid fa-check me-1"></i> Mark
                         </button>
                     </div>
                     <div class="form-text fs-7 text-muted text-center mt-1">
-                        Physical exam barcodes (such as <code>705632441947</code>) auto-register instantly upon scan or entry.
+                        Any physical exam barcode (such as <code>705632441947</code>) auto-enrolls instantly upon scan or entry.
                     </div>
                 </form>
 
@@ -885,11 +900,30 @@
     }
 
     function openScannerForSelected() {
-        if (!selectedStudent || IS_SESSION_LOCKED) return;
+        if (!selectedStudent) {
+            // Auto select the first visible student in the roster
+            const visibleRow = document.querySelector('.roster-row:not(.d-none)');
+            if (visibleRow) {
+                selectRosterStudent(visibleRow.dataset.usn);
+            }
+        }
+
+        if (!selectedStudent) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Select Candidate First',
+                text: 'Please select a student from the examination roster before launching the barcode scanner.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        if (IS_SESSION_LOCKED) return;
         if (!IS_SESSION_TIME_ACTIVE) {
             showTimeLockedAlert();
             return;
         }
+
         document.getElementById('modalStudentName').textContent = selectedStudent.name;
         document.getElementById('modalStudentUsn').textContent = selectedStudent.usn;
         document.getElementById('modalStudentDesk').textContent = `Desk: ${selectedStudent.desk}`;
@@ -904,7 +938,64 @@
         // Start HTML5 Camera Scanner
         setTimeout(() => {
             startCamera();
-        }, 400);
+        }, 300);
+    }
+
+    let currentFacingMode = "environment";
+    let isTorchActive = false;
+
+    function switchCameraFacing() {
+        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+        stopCamera();
+        setTimeout(() => {
+            startCamera();
+        }, 300);
+    }
+
+    function toggleCameraTorch() {
+        if (!html5Scanner || !isScannerRunning) return;
+        try {
+            isTorchActive = !isTorchActive;
+            html5Scanner.applyVideoConstraints({
+                advanced: [{ torch: isTorchActive }]
+            }).then(() => {
+                const btn = document.getElementById('btnToggleTorch');
+                if (btn) {
+                    btn.classList.toggle('btn-warning', isTorchActive);
+                    btn.classList.toggle('btn-outline-secondary', !isTorchActive);
+                }
+            }).catch(e => {
+                console.warn("Torch not supported on this camera:", e);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Flashlight not supported on this lens',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            });
+        } catch (e) {
+            console.warn("Torch error:", e);
+        }
+    }
+
+    function pasteBarcodeFromClipboard() {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(text => {
+                const input = document.getElementById('manualBarcodeInput');
+                if (input && text) {
+                    input.value = text.trim();
+                    input.focus();
+                }
+            }).catch(() => {
+                const input = document.getElementById('manualBarcodeInput');
+                if (input) input.focus();
+            });
+        } else {
+            const input = document.getElementById('manualBarcodeInput');
+            if (input) input.focus();
+        }
     }
 
     function submitManualBarcode(e) {
@@ -935,44 +1026,94 @@
 
     function startCamera() {
         const viewport = document.getElementById('cameraViewport');
-        viewport.innerHTML = ''; // Clear placeholder
+        viewport.innerHTML = '<span class="text-white-50"><i class="fa-solid fa-circle-notch fa-spin me-2"></i> Initializing camera...</span>';
         
-        // Supported symbologies: Code128, Code39, EAN, QR Code, Data Matrix
-        const formatsToSupport = [
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.DATA_MATRIX
-        ];
+        // Support all university exam symbologies: Code 128, Code 39, Code 93, Codabar, EAN-13, EAN-8, UPC-A, UPC-E, ITF, QR Code, Data Matrix
+        let formatsToSupport = [];
+        if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+            formatsToSupport = [
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.CODE_39,
+                Html5QrcodeSupportedFormats.CODE_93,
+                Html5QrcodeSupportedFormats.CODABAR,
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.UPC_E,
+                Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+                Html5QrcodeSupportedFormats.ITF,
+                Html5QrcodeSupportedFormats.QR_CODE,
+                Html5QrcodeSupportedFormats.DATA_MATRIX
+            ];
+        }
 
-        html5Scanner = new Html5Qrcode("cameraViewport", {
-            formatsToSupport: formatsToSupport,
-            verbose: false
-        });
+        try {
+            html5Scanner = new Html5Qrcode("cameraViewport", {
+                formatsToSupport: formatsToSupport.length ? formatsToSupport : undefined,
+                verbose: false,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            });
+        } catch (initErr) {
+            console.error("Html5Qrcode init error:", initErr);
+            showCameraFallback(initErr);
+            return;
+        }
 
         const config = {
-            fps: 15,
-            qrbox: { width: 260, height: 160 },
+            fps: 20,
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.85);
+                return {
+                    width: Math.max(180, edge),
+                    height: Math.floor(Math.max(180, edge) * 0.65)
+                };
+            },
             aspectRatio: 1.0
         };
 
         html5Scanner.start(
-            { facingMode: "environment" },
+            { facingMode: currentFacingMode },
             config,
             onBarcodeScannedSuccess,
             onBarcodeScanFailure
         ).then(() => {
             isScannerRunning = true;
+            document.getElementById('cameraErrorBanner').classList.add('d-none');
         }).catch(err => {
-            console.error("Camera start error:", err);
-            isScannerRunning = false;
-            const errBanner = document.getElementById('cameraErrorBanner');
-            const errMsg = document.getElementById('cameraErrorMessage');
-            errBanner.classList.remove('d-none');
-            errMsg.textContent = `Camera error: ${err}. Please ensure camera permission is granted and context is secure (HTTPS or localhost).`;
+            console.warn(`Camera start failed with facingMode ${currentFacingMode}, retrying standard camera:`, err);
+            // Fallback: try starting without constraints
+            html5Scanner.start(
+                true,
+                config,
+                onBarcodeScannedSuccess,
+                onBarcodeScanFailure
+            ).then(() => {
+                isScannerRunning = true;
+                document.getElementById('cameraErrorBanner').classList.add('d-none');
+            }).catch(fallbackErr => {
+                console.error("Camera fallback start error:", fallbackErr);
+                isScannerRunning = false;
+                showCameraFallback(fallbackErr);
+            });
         });
+    }
+
+    function showCameraFallback(err) {
+        const errBanner = document.getElementById('cameraErrorBanner');
+        const errMsg = document.getElementById('cameraErrorMessage');
+        errBanner.classList.remove('d-none');
+        errMsg.innerHTML = `<strong>Camera Notice:</strong> ${err.message || err}<br><small>If camera permission was denied, please allow camera in your browser settings or type the barcode in the manual field below.</small>`;
+        
+        setTimeout(() => {
+            const manualInp = document.getElementById('manualBarcodeInput');
+            if (manualInp) {
+                manualInp.focus();
+                manualInp.classList.add('border-primary');
+            }
+        }, 400);
+    }
     }
 
     function onBarcodeScanFailure(error) {
@@ -1059,6 +1200,12 @@
 
     function closeCameraModal() {
         stopCamera();
+        isTorchActive = false;
+        const btn = document.getElementById('btnToggleTorch');
+        if (btn) {
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-outline-secondary');
+        }
         cameraModalInstance.hide();
     }
 
@@ -1246,19 +1393,29 @@
     function filterRoster(filterType, btn) {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        let firstMatchUsn = null;
 
         document.querySelectorAll('.roster-row').forEach(row => {
             const st = row.dataset.status;
             if (filterType === 'ALL' || st === filterType) {
                 row.classList.remove('d-none');
+                if (!firstMatchUsn) firstMatchUsn = row.dataset.usn;
             } else {
                 row.classList.add('d-none');
             }
         });
+
+        // Keep a valid candidate selected
+        if (firstMatchUsn && (!selectedUsn || (document.getElementById(`row-${selectedUsn}`) && document.getElementById(`row-${selectedUsn}`).classList.contains('d-none')))) {
+            selectRosterStudent(firstMatchUsn);
+        }
     }
 
     function searchRoster() {
         const query = document.getElementById('rosterSearchInput').value.toLowerCase().trim();
+        let matchCount = 0;
+        let firstMatchUsn = null;
+
         document.querySelectorAll('.roster-row').forEach(row => {
             const usn = row.dataset.usn.toLowerCase();
             const name = row.dataset.name.toLowerCase();
@@ -1267,10 +1424,19 @@
 
             if (usn.includes(query) || name.includes(query) || desk.includes(query) || barcode.includes(query)) {
                 row.classList.remove('d-none');
+                matchCount++;
+                if (!firstMatchUsn) firstMatchUsn = row.dataset.usn;
             } else {
                 row.classList.add('d-none');
             }
         });
+
+        // When searching, auto-select the matching student if 1 match or if current selection is hidden
+        if (firstMatchUsn) {
+            if (matchCount === 1 || !selectedUsn || (selectedUsn && document.getElementById(`row-${selectedUsn}`) && document.getElementById(`row-${selectedUsn}`).classList.contains('d-none'))) {
+                selectRosterStudent(firstMatchUsn);
+            }
+        }
     }
 
     {% if session.get('role') == 'ADMIN' %}
