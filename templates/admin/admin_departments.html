@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Departments & Classrooms | COE Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb fs-7 mb-1">
+            <li class="breadcrumb-item"><a href="/admin" class="text-decoration-none">Admin Console</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Departments & Classrooms</li>
+        </ol>
+    </nav>
+
+    <!-- Header Banner -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-4 bg-white rounded-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <h4 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-building text-primary me-2"></i> Department & Classroom Infrastructure</h4>
+                    <p class="text-muted fs-7 mb-0">
+                        Configure institutional academic departments and examination hall rooms.
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#createDeptModal">
+                        <i class="fa-solid fa-plus me-1"></i> Add Department
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                        <i class="fa-solid fa-door-open me-1"></i> Add Classroom
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Departments Column -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm bg-white">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="fw-bold mb-0 text-dark">Academic Departments ({{ departments|length }})</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Code</th>
+                                    <th>Department Name</th>
+                                    <th class="text-end pe-3">Rooms</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in departments %}
+                                <tr>
+                                    <td class="ps-3"><span class="badge bg-navy text-white font-monospace">{{ d.code }}</span></td>
+                                    <td class="fw-semibold text-dark">{{ d.name }}</td>
+                                    <td class="text-end pe-3">
+                                        <span class="badge bg-light text-secondary border font-monospace">{{ d.classroom_count }} rooms</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classrooms Column -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm bg-white">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="fw-bold mb-0 text-dark">Classrooms / Examination Halls ({{ classrooms|length }})</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Room</th>
+                                    <th>Department</th>
+                                    <th>Building</th>
+                                    <th class="text-center">Capacity</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in classrooms %}
+                                <tr>
+                                    <td class="ps-3 fw-bold text-dark font-monospace">
+                                        <i class="fa-solid fa-door-open text-primary me-2"></i>{{ r.room_number }}
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border font-monospace">{{ r.dept_code }}</span></td>
+                                    <td class="text-muted fs-7">{{ r.building or 'Main Campus' }}</td>
+                                    <td class="text-center font-monospace">
+                                        <span class="badge bg-light text-primary border">{{ r.capacity }} desks</span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7 me-1" 
+                                                onclick="openEditRoomModal({{ r.id }}, '{{ r.room_number }}', '{{ r.building or '' }}', {{ r.capacity }})">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit / Capacity
+                                        </button>
+                                        <form method="POST" action="/admin/classrooms/{{ r.id }}/delete" class="d-inline" onsubmit="return confirm('Are you sure you want to delete classroom {{ r.room_number }}?');">
+                                            <button type="submit" class="btn btn-xs btn-outline-danger py-1 px-2 fs-7">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Create Department Modal -->
+<div class="modal fade" id="createDeptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">Add Academic Department</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/departments/create">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Department Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace" name="code" placeholder="e.g. AI / AIML" required uppercase>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Full Department Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" placeholder="e.g. Artificial Intelligence and Machine Learning" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Save Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Classroom Modal -->
+<div class="modal fade" id="createRoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">Add Classroom / Exam Hall</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/classrooms/create">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Department <span class="text-danger">*</span></label>
+                        <select class="form-select" name="department_id" required>
+                            <option value="">Select Department...</option>
+                            {% for d in departments %}
+                            <option value="{{ d.id }}">{{ d.code }} - {{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="room_number" placeholder="e.g. Room 501 (Block E)" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Building / Block</label>
+                        <input type="text" class="form-control" name="building" placeholder="e.g. Block E">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Desk Seating Capacity</label>
+                        <input type="number" class="form-control" name="capacity" value="40" min="1" max="500">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Save Classroom</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Edit Classroom / Capacity Modal -->
+<div class="modal fade" id="editRoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2"></i> Edit Classroom / Increase Capacity</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editRoomForm" method="POST" action="">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_room_number" name="room_number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Building / Block</label>
+                        <input type="text" class="form-control" id="edit_building" name="building">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Desk Seating Capacity (Desks) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="edit_capacity" name="capacity" min="1" max="1000" required>
+                        <div class="form-text fs-7">Increase desk capacity here to accommodate more candidates.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditRoomModal(id, roomNumber, building, capacity) {
+        document.getElementById('editRoomForm').action = '/admin/classrooms/' + id + '/edit';
+        document.getElementById('edit_room_number').value = roomNumber;
+        document.getElementById('edit_building').value = building;
+        document.getElementById('edit_capacity').value = capacity;
+        new bootstrap.Modal(document.getElementById('editRoomModal')).show();
+    }
+</script>
+{% endblock %}

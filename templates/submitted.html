@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Submitted & Finalized | COE ExamAttend{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-9 col-lg-7">
+            
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white text-center p-4 p-md-5">
+                
+                <!-- Success Icon -->
+                <div class="rounded-circle bg-success-subtle text-success mx-auto d-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fa-solid fa-circle-check fs-1"></i>
+                </div>
+
+                <h3 class="fw-bold text-dark mb-1">Attendance Finalized & Locked</h3>
+                <p class="text-muted fs-7 mb-4">
+                    The examination attendance for this session has been officially verified, locked, and recorded in the COE central registry.
+                </p>
+
+                <!-- Metadata Summary Receipt -->
+                <div class="p-4 bg-light rounded-3 border text-start mb-4">
+                    <div class="row g-3 fs-7">
+                        <div class="col-6">
+                            <span class="text-muted">Course / Subject:</span><br>
+                            <strong class="text-dark">{{ session_data.course_code }} - {{ session_data.course_name }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Classroom / Hall:</span><br>
+                            <strong class="text-dark">{{ session_data.room_number }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Exam Date & Session:</span><br>
+                            <strong class="text-dark">{{ session_data.exam_date }} ({{ session_data.exam_session }})</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Invigilator:</span><br>
+                            <strong class="text-dark">{{ session_data.invigilator_name }}</strong>
+                        </div>
+                        <div class="col-12 border-top pt-2">
+                            <span class="text-muted">Submission Timestamp:</span><br>
+                            <strong class="text-success"><i class="fa-solid fa-clock me-1"></i> {{ session_data.locked_at }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Counters Pill -->
+                <div class="d-flex justify-content-center flex-wrap gap-2 mb-4">
+                    <span class="badge bg-secondary px-3 py-2 fs-7">Assigned: {{ stats.total }}</span>
+                    <span class="badge bg-success px-3 py-2 fs-7">Present: {{ stats.present }}</span>
+                    <span class="badge bg-danger px-3 py-2 fs-7">Absent: {{ stats.absent }}</span>
+                    {% if stats.pending > 0 %}
+                    <span class="badge bg-warning text-dark px-3 py-2 fs-7">Pending Exception: {{ stats.pending }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Primary Action Buttons -->
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="/download_report/{{ session_data.id }}" class="btn btn-success fw-semibold px-4 py-2">
+                        <i class="fa-solid fa-file-excel me-2"></i> Download Official COE Excel Report
+                    </a>
+                    <a href="/departments/{{ session_data.department_id }}/classrooms" class="btn btn-outline-secondary px-4 py-2">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Return to Classroom List
+                    </a>
+                </div>
+
+                <div class="mt-4 text-muted fs-7">
+                    <i class="fa-solid fa-shield-halved text-primary me-1"></i>
+                    Modifications to this session are now locked. Unauthorized changes will be rejected by the server.
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Sample Printable Barcodes & QR Codes | COE ExamAttend{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4 bg-white rounded">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                            <i class="fa-solid fa-qrcode me-1"></i> Testing & Demonstration
+                        </span>
+                        <h4 class="fw-bold mb-0 text-dark">Sample Examination Barcodes & QR Codes</h4>
+                    </div>
+                    <p class="text-muted fs-7 mb-0">
+                        Scan these directly from your monitor or print them out to test the camera barcode scanner or handheld USB scanner.
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                        <i class="fa-solid fa-print me-1"></i> Print Test Sheet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 1: Official Question Paper Barcodes -->
+    <h5 class="fw-bold text-dark mb-3">
+        <i class="fa-solid fa-file-lines text-primary me-2"></i> Question Paper Barcodes (For Room Attendance & Evaluation)
+    </h5>
+
+    <div class="row g-4 mb-5">
+        <!-- Sample 1 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border shadow-sm h-100 text-center p-3 bg-white">
+                <span class="badge bg-success-subtle text-success border border-success-subtle mb-2 align-self-center">
+                    Room 302 Official Series
+                </span>
+                <h6 class="fw-bold mb-1">CS801 - Cloud Computing</h6>
+                <p class="text-muted fs-7 mb-2">Morning Session QP</p>
+                
+                <div class="p-3 bg-light rounded border d-flex flex-column align-items-center justify-content-center">
+                    <svg id="barcode1" class="mb-2"></svg>
+                    <div id="qr1" class="mt-2"></div>
+                </div>
+                
+                <div class="mt-3">
+                    <code class="fw-bold fs-6 text-dark font-monospace">QP-2026-CS801-A</code>
+                </div>
+                <small class="text-muted fs-7 mt-1">Use this to mark Room 302 students PRESENT</small>
+            </div>
+        </div>
+
+        <!-- Sample 2 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border shadow-sm h-100 text-center p-3 bg-white">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-2 align-self-center">
+                    Room 405 Official Series
+                </span>
+                <h6 class="fw-bold mb-1">IS702 - Machine Learning</h6>
+                <p class="text-muted fs-7 mb-2">Afternoon Session QP</p>
+                
+                <div class="p-3 bg-light rounded border d-flex flex-column align-items-center justify-content-center">
+                    <svg id="barcode2" class="mb-2"></svg>
+                    <div id="qr2" class="mt-2"></div>
+                </div>
+                
+                <div class="mt-3">
+                    <code class="fw-bold fs-6 text-dark font-monospace">QP-2026-IS702-B</code>
+                </div>
+                <small class="text-muted fs-7 mt-1">Use this to mark Room 405 students PRESENT</small>
+            </div>
+        </div>
+
+        <!-- Sample 3 (Discrepancy Test) -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border border-danger shadow-sm h-100 text-center p-3 bg-white">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle mb-2 align-self-center">
+                    Discrepancy Test (Wrong / Tampered)
+                </span>
+                <h6 class="fw-bold text-danger mb-1">Invalid QP Barcode</h6>
+                <p class="text-muted fs-7 mb-2">For testing evaluator alert</p>
+                
+                <div class="p-3 bg-light rounded border d-flex flex-column align-items-center justify-content-center">
+                    <svg id="barcode3" class="mb-2"></svg>
+                    <div id="qr3" class="mt-2"></div>
+                </div>
+                
+                <div class="mt-3">
+                    <code class="fw-bold fs-6 text-danger font-monospace">TAMPERED-BARCODE-999</code>
+                </div>
+                <small class="text-danger fs-7 mt-1">Triggers Discrepancy Flag in Evaluator mode</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Candidate USN Barcodes (For Answer Booklets / Hall Tickets) -->
+    <h5 class="fw-bold text-dark mb-3">
+        <i class="fa-solid fa-id-card text-primary me-2"></i> Candidate USN Barcodes (Sample Hall Tickets)
+    </h5>
+
+    <div class="row g-3 mb-4">
+        {% set sample_usns = [
+            ('1MS21CS001', 'Aakash Verma', 'Desk D-01'),
+            ('1MS21CS002', 'Ananya Hegde', 'Desk D-02'),
+            ('1MS21CS003', 'Bhavik Patel', 'Desk D-03'),
+            ('1MS21CS004', 'Deepak Kumar', 'Desk D-04')
+        ] %}
+        {% for usn, name, desk in sample_usns %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card border shadow-sm p-3 text-center bg-white">
+                <span class="badge bg-secondary font-monospace mb-1 align-self-center">{{ desk }}</span>
+                <strong class="text-dark">{{ name }}</strong>
+                <code class="text-primary font-monospace fw-bold mb-2">{{ usn }}</code>
+                <div class="p-2 bg-light rounded border d-flex justify-content-center">
+                    <svg id="usn-{{ usn }}"></svg>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- JsBarcode CDN for Code128 generation -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<!-- QRCode.js CDN for 2D QR Code generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Render QP Barcodes (Code 128)
+        JsBarcode("#barcode1", "QP-2026-CS801-A", { format: "CODE128", width: 1.8, height: 50, displayValue: true, fontSize: 13 });
+        JsBarcode("#barcode2", "QP-2026-IS702-B", { format: "CODE128", width: 1.8, height: 50, displayValue: true, fontSize: 13 });
+        JsBarcode("#barcode3", "TAMPERED-BARCODE-999", { format: "CODE128", width: 1.8, height: 50, displayValue: true, fontSize: 13 });
+
+        // Render QR Codes
+        new QRCode(document.getElementById("qr1"), { text: "QP-2026-CS801-A", width: 90, height: 90 });
+        new QRCode(document.getElementById("qr2"), { text: "QP-2026-IS702-B", width: 90, height: 90 });
+        new QRCode(document.getElementById("qr3"), { text: "TAMPERED-BARCODE-999", width: 90, height: 90 });
+
+        // Render Candidate USN Barcodes
+        ['1MS21CS001', '1MS21CS002', '1MS21CS003', '1MS21CS004'].forEach(usn => {
+            JsBarcode(`#usn-${usn}`, usn, { format: "CODE128", width: 1.4, height: 35, displayValue: false });
+        });
+    });
+</script>
+{% endblock %}

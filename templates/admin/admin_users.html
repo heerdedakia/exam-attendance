@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Management | COE Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb fs-7 mb-1">
+            <li class="breadcrumb-item"><a href="/admin" class="text-decoration-none">Admin Console</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Teacher Accounts</li>
+        </ol>
+    </nav>
+
+    <!-- Header Banner -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-4 bg-white rounded-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <h4 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-user-gear text-primary me-2"></i> Teacher & Invigilator Accounts</h4>
+                    <p class="text-muted fs-7 mb-0">
+                        Create teacher credentials, assign departmental access, and activate or deactivate invigilator privileges.
+                    </p>
+                </div>
+                <button class="btn btn-primary btn-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#createTeacherModal">
+                    <i class="fa-solid fa-user-plus me-1"></i> Add New Teacher
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table Card -->
+    <div class="card border-0 shadow-sm bg-white">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="fw-bold mb-0 text-dark">Registered Accounts ({{ users|length }})</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Full Name</th>
+                            <th>Username</th>
+                            <th>Institutional Email</th>
+                            <th>Role</th>
+                            <th>Primary Department</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td class="ps-3 fw-semibold text-dark">
+                                <i class="fa-solid fa-circle-user text-secondary me-2"></i>{{ u.full_name }}
+                            </td>
+                            <td><code class="text-primary font-monospace">{{ u.username }}</code></td>
+                            <td class="text-muted fs-7">{{ u.email }}</td>
+                            <td>
+                                {% if u.role == 'ADMIN' %}
+                                    <span class="badge bg-danger text-white fs-7">ADMIN</span>
+                                {% else %}
+                                    <span class="badge bg-primary text-white fs-7">TEACHER</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u.dept_code %}
+                                    <span class="badge bg-light text-dark border font-monospace">{{ u.dept_code }}</span>
+                                {% else %}
+                                    <span class="text-muted fs-7">All / Global</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u.is_active %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-7">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-7">Deactivated</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted fs-7">{{ u.created_at[:10] if u.created_at else '-' }}</td>
+                            <td class="text-end pe-3">
+                                {% if u.role != 'ADMIN' %}
+                                <form method="POST" action="/admin/users/{{ u.id }}/toggle" style="display:inline;">
+                                    {% if u.is_active %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Deactivate Account" onclick="return confirm('Deactivate account for {{ u.username }}?')">
+                                        <i class="fa-solid fa-user-slash"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" class="btn btn-outline-success btn-sm" title="Activate Account">
+                                        <i class="fa-solid fa-user-check"></i>
+                                    </button>
+                                    {% endif %}
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Create Teacher Account Modal -->
+<div class="modal fade" id="createTeacherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">
+                    <i class="fa-solid fa-user-plus text-primary me-2"></i> Register New Teacher Account
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/users/create">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="full_name" placeholder="e.g. Dr. Ramesh Sharma" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="username" placeholder="e.g. teacher_ramesh" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Institutional Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" placeholder="e.g. ramesh@college.edu" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" name="password" placeholder="Minimum 6 characters" required minlength="6">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Assigned Department <span class="text-danger">*</span></label>
+                        <select class="form-select" name="department_id" required>
+                            <option value="">Select Department...</option>
+                            {% for d in departments %}
+                            <option value="{{ d.id }}">{{ d.code }} - {{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

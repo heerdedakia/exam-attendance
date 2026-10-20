@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+
+{% block title %}Final Attendance Review - {{ session_data.room_number }} | COE ExamAttend{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb fs-7 mb-1">
+            <li class="breadcrumb-item"><a href="/departments" class="text-decoration-none">Departments</a></li>
+            <li class="breadcrumb-item"><a href="/departments/{{ session_data.department_id }}/classrooms" class="text-decoration-none">{{ session_data.department_name or 'Department' }}</a></li>
+            <li class="breadcrumb-item"><a href="/sessions/{{ session_data.id }}/roster" class="text-decoration-none">{{ session_data.room_number }} Roster</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Final Review</li>
+        </ol>
+    </nav>
+
+    <!-- Header Banner -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-4 bg-white rounded-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-navy text-white font-monospace px-2 py-1">
+                            {{ session_data.course_code }}
+                        </span>
+                        <h4 class="fw-bold mb-0 text-dark">Pre-Submission Attendance Verification</h4>
+                        <span class="badge bg-warning text-dark fs-7"><i class="fa-solid fa-list-check me-1"></i> Verification Phase</span>
+                    </div>
+                    <p class="text-muted fs-7 mb-0">
+                        Carefully review present, absent, and pending candidates. Once finalized and submitted, records will be officially locked.
+                    </p>
+                </div>
+                
+                <div class="d-flex align-items-center gap-2">
+                    <a href="/sessions/{{ session_data.id }}/roster" class="btn btn-outline-secondary btn-sm px-3">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Return to Scanning Roster
+                    </a>
+                    
+                    {% if pending_list|length > 0 %}
+                        <button type="button" class="btn btn-warning btn-sm px-4 fw-semibold" onclick="handlePendingWarningSubmit()">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i> Finalize ({{ pending_list|length }} Unmarked)
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-success btn-sm px-4 fw-semibold" onclick="openFinalSubmitModal()">
+                            <i class="fa-solid fa-lock me-1"></i> Confirm & Finalize Submission
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Examination Metadata Summary Strip -->
+    <div class="card border-0 shadow-sm bg-white p-3 mb-4">
+        <div class="row g-3 fs-7">
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Examination:</span><br>
+                <strong class="text-dark">{{ session_data.exam_name or 'BE Semester End Exam 2026' }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Course & Subject:</span><br>
+                <strong class="text-dark">{{ session_data.course_code }} - {{ session_data.course_name }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Room & Session:</span><br>
+                <strong class="text-dark">{{ session_data.room_number }} ({{ session_data.exam_session }})</strong>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Responsible Invigilator:</span><br>
+                <strong class="text-dark">{{ session_data.invigilator_name }} ({{ session_data.invigilator_id }})</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Summary Statistics Box -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3">
+                <div class="text-muted fs-7 fw-bold text-uppercase">Total Assigned</div>
+                <h3 class="fw-bold mb-0 text-dark">{{ total_students }}</h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 border-start border-4 border-success">
+                <div class="text-muted fs-7 fw-bold text-uppercase">Confirmed Present</div>
+                <h3 class="fw-bold mb-0 text-success">{{ present_list|length }}</h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 border-start border-4 border-danger">
+                <div class="text-muted fs-7 fw-bold text-uppercase">Confirmed Absent</div>
+                <h3 class="fw-bold mb-0 text-danger">{{ absent_list|length }}</h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 border-start border-4 border-warning">
+                <div class="text-muted fs-7 fw-bold text-uppercase">Unresolved / Pending</div>
+                <h3 class="fw-bold mb-0 text-warning">{{ pending_list|length }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION C: PENDING STUDENTS (PROMINENTLY HIGHLIGHTED AS REQUIRED) -->
+    {% if pending_list|length > 0 %}
+    <div class="card border-warning shadow-sm mb-4 bg-white">
+        <div class="card-header bg-warning-subtle text-warning-emphasis py-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation fs-5"></i>
+                <h6 class="fw-bold mb-0">SECTION C: PENDING / UNRESOLVED CANDIDATES ({{ pending_list|length }})</h6>
+            </div>
+            <span class="badge bg-warning text-dark fs-7">Action Required Prior to Final Submission</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="p-3 bg-light border-bottom fs-7 text-muted">
+                <i class="fa-solid fa-circle-info me-1 text-warning"></i>
+                The following students have not yet been scanned as Present or confirmed as Absent. Please resolve each student row before locking the session.
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 80px;">Desk</th>
+                            <th style="width: 160px;">USN</th>
+                            <th>Student Name</th>
+                            <th class="text-center" style="width: 140px;">Status</th>
+                            <th class="text-end pe-3" style="width: 200px;">Review Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in pending_list %}
+                        <tr class="table-warning bg-opacity-25">
+                            <td class="ps-3 font-monospace fw-bold">{{ s.desk_number }}</td>
+                            <td class="font-monospace fw-bold text-dark">{{ s.usn }}</td>
+                            <td class="fw-semibold text-dark">{{ s.student_name }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-pending px-2 py-1 fs-7">
+                                    <i class="fa-regular fa-clock me-1"></i> PENDING
+                                </span>
+                            </td>
+                            <td class="text-end pe-3">
+                                <a href="/sessions/{{ session_data.id }}/roster" class="btn btn-warning btn-sm fw-semibold">
+                                    <i class="fa-solid fa-barcode me-1"></i> Scan / Resolve Now
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SECTION A: PRESENT STUDENTS -->
+    <div class="card border-0 shadow-sm mb-4 bg-white">
+        <div class="card-header bg-success-subtle text-success-emphasis py-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-circle-check fs-5"></i>
+                <h6 class="fw-bold mb-0">SECTION A: CONFIRMED PRESENT CANDIDATES ({{ present_list|length }})</h6>
+            </div>
+            <span class="badge bg-success text-white fs-7">Verified via Answer Booklet Barcode</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 80px;">Desk</th>
+                            <th style="width: 160px;">USN</th>
+                            <th>Student Name</th>
+                            <th>Assigned Booklet Barcode</th>
+                            <th>Scan Timestamp</th>
+                            <th class="text-end pe-3" style="width: 140px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in present_list %}
+                        <tr>
+                            <td class="ps-3 font-monospace fw-bold text-secondary">{{ s.desk_number }}</td>
+                            <td class="font-monospace fw-bold text-primary">{{ s.usn }}</td>
+                            <td class="fw-semibold text-dark">{{ s.student_name }}</td>
+                            <td>
+                                <code class="bg-light px-2 py-1 rounded text-dark border font-monospace">{{ s.qp_barcode }}</code>
+                            </td>
+                            <td class="text-muted fs-7">{{ s.marked_at }}</td>
+                            <td class="text-end pe-3">
+                                <a href="/sessions/{{ session_data.id }}/roster" class="btn btn-outline-secondary btn-sm" title="Correct in roster">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No students currently marked present.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION B: ABSENT STUDENTS -->
+    <div class="card border-0 shadow-sm mb-4 bg-white">
+        <div class="card-header bg-danger-subtle text-danger-emphasis py-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-user-xmark fs-5"></i>
+                <h6 class="fw-bold mb-0">SECTION B: CONFIRMED ABSENT CANDIDATES ({{ absent_list|length }})</h6>
+            </div>
+            <span class="badge bg-danger text-white fs-7">Explicitly Confirmed by Invigilator</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 80px;">Desk</th>
+                            <th style="width: 160px;">USN</th>
+                            <th>Student Name</th>
+                            <th class="text-center" style="width: 140px;">Status</th>
+                            <th>Verification Note</th>
+                            <th class="text-end pe-3" style="width: 140px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in absent_list %}
+                        <tr>
+                            <td class="ps-3 font-monospace fw-bold text-secondary">{{ s.desk_number }}</td>
+                            <td class="font-monospace fw-bold text-danger">{{ s.usn }}</td>
+                            <td class="fw-semibold text-dark">{{ s.student_name }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-absent px-2 py-1 fs-7"><i class="fa-solid fa-xmark me-1"></i> ABSENT</span>
+                            </td>
+                            <td class="text-muted fs-7">Verified absent at candidate desk. No booklet issued.</td>
+                            <td class="text-end pe-3">
+                                <a href="/sessions/{{ session_data.id }}/roster" class="btn btn-outline-secondary btn-sm" title="Correct in roster">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No students confirmed absent.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Final Submission Confirmation Dialog Modal -->
+<div class="modal fade" id="confirmSubmitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">
+                    <i class="fa-solid fa-shield-halved text-warning me-2"></i> Final Confirmation & Submission Locking
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted fs-7 mb-3">
+                    Please confirm that you have checked the candidate roster against physical desks and answer booklets:
+                </p>
+
+                <!-- Count Summary Box -->
+                <div class="p-3 bg-light rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Total Assigned:</span>
+                        <strong class="text-dark">{{ total_students }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-success fw-bold">Confirmed Present:</span>
+                        <strong class="text-success">{{ present_list|length }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-danger fw-bold">Confirmed Absent:</span>
+                        <strong class="text-danger">{{ absent_list|length }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-warning fw-bold">Pending / Unmarked:</span>
+                        <strong class="text-warning">{{ pending_list|length }}</strong>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 px-3 fs-7 mb-0">
+                    <i class="fa-solid fa-info-circle me-1"></i>
+                    Submitting will finalize the examination session, timestamp the records, and generate the official Controller of Examinations Excel report.
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">
+                    Cancel / Continue Editing
+                </button>
+                <button type="button" class="btn btn-success btn-sm px-4 fw-semibold" id="btnConfirmSubmit" onclick="executeFinalSubmit(false)">
+                    <i class="fa-solid fa-lock me-1"></i> Confirm and Submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const SESSION_ID = {{ session_data.id }};
+    const PENDING_COUNT = {{ pending_list|length }};
+
+    function handlePendingWarningSubmit() {
+        Swal.fire({
+            title: 'Unmarked Candidates Warning!',
+            html: `There are still <strong>${PENDING_COUNT} student(s)</strong> with UNMARKED / PENDING attendance.<br><br>Institutional policy requires resolving all students or explicitly proceeding with an approved exception.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d97706',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Proceed Anyway (Force Submit)',
+            cancelButtonText: 'Return to Resolve Students'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                executeFinalSubmit(true);
+            }
+        });
+    }
+
+    function openFinalSubmitModal() {
+        new bootstrap.Modal(document.getElementById('confirmSubmitModal')).show();
+    }
+
+    function executeFinalSubmit(force) {
+        const btn = document.getElementById('btnConfirmSubmit');
+        if (btn) btn.disabled = true;
+
+        fetch('/api/session/confirm_lock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: SESSION_ID,
+                force_submit: force
+            })
+        })
+        .then(res => res.json().then(data => ({ status: res.status, body: data })))
+        .then(({ status, body }) => {
+            if (status === 200 && body.success) {
+                window.location.href = `/sessions/${SESSION_ID}/submitted`;
+            } else if (body.warning === 'unmarked_students') {
+                Swal.fire({
+                    title: 'Pending Students Detected',
+                    text: body.message,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Force Submit',
+                    cancelButtonText: 'Review Students'
+                }).then((r) => {
+                    if (r.isConfirmed) {
+                        executeFinalSubmit(true);
+                    }
+                });
+            } else {
+                Swal.fire('Submission Failed', body.message || 'Error locking session.', 'error');
+            }
+        })
+        .catch(() => {
+            Swal.fire('Network Error', 'Could not complete final submission.', 'error');
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
+        });
+    }
+</script>
+{% endblock %}

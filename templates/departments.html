@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Department Selection Dashboard | COE ExamAttend{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <!-- Header Banner -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4 bg-white rounded-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                            <i class="fa-solid fa-graduation-cap me-1"></i> Academic Year 2025-2026
+                        </span>
+                        <h4 class="fw-bold mb-0 text-dark">Examination Department Dashboard</h4>
+                    </div>
+                    <p class="text-muted fs-7 mb-0">
+                        Select your authorized department to access classroom examination sessions and candidate rosters.
+                    </p>
+                </div>
+                
+                <div class="d-flex align-items-center gap-2">
+                    {% if session.get('role') == 'ADMIN' %}
+                    <a href="/admin/departments" class="btn btn-outline-primary btn-sm">
+                        <i class="fa-solid fa-gear me-1"></i> Manage Departments
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active User Authorization Notice -->
+    <div class="alert alert-light border shadow-sm d-flex align-items-center justify-content-between py-2 px-3 mb-4 rounded-3">
+        <div class="d-flex align-items-center gap-2 fs-7 text-secondary">
+            <i class="fa-solid fa-user-shield text-primary"></i>
+            <span>Logged in as <strong>{{ session.get('full_name') }}</strong> ({{ session.get('role') }})</span>
+            <span class="mx-1">&bull;</span>
+            <span>Authorized Departments: <strong>{{ authorized_dept_codes|join(', ') if authorized_dept_codes else 'All Departments' }}</strong></span>
+        </div>
+        <span class="badge bg-primary text-white font-monospace">{{ departments|length }} Department(s) Accessible</span>
+    </div>
+
+    <!-- Department Cards Grid -->
+    <div class="row g-3 g-md-4">
+        {% for dept in departments %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100 dept-card bg-white position-relative overflow-hidden transition-all">
+                <div class="dept-card-stripe bg-primary"></div>
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="badge bg-navy text-white font-monospace px-2 py-1 fs-7">
+                                {{ dept.code }}
+                            </span>
+                            <span class="badge bg-light text-secondary border fs-7">
+                                <i class="fa-solid fa-door-closed me-1"></i> {{ dept.classroom_count }} Room(s)
+                            </span>
+                        </div>
+
+                        <h5 class="fw-bold text-dark mb-2">{{ dept.name }}</h5>
+                        
+                        <div class="text-muted fs-7 mb-3">
+                            <div><i class="fa-solid fa-file-signature text-secondary me-1"></i> Active Exam: <span class="text-dark fw-semibold">{{ dept.active_exam or 'BE Semester End Exam 2026' }}</span></div>
+                            <div><i class="fa-solid fa-users text-secondary me-1"></i> Total Scheduled Candidates: <span class="text-dark fw-semibold">{{ dept.candidate_count or 0 }}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-top mt-2 d-flex align-items-center justify-content-between">
+                        <span class="fs-7 text-muted">
+                            <i class="fa-solid fa-circle-check text-success me-1"></i> Authorization Verified
+                        </span>
+                        <a href="/departments/{{ dept.id }}/classrooms" class="btn btn-primary btn-sm px-3 fw-semibold">
+                            Enter Rooms <i class="fa-solid fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm p-5 text-center bg-white">
+                <i class="fa-solid fa-building-circle-xmark text-muted fs-1 mb-3"></i>
+                <h5 class="fw-bold text-dark">No Authorized Departments Found</h5>
+                <p class="text-muted fs-7 mb-3">You do not have active department examination duties assigned. Please contact the Controller of Examinations.</p>
+                <a href="/logout" class="btn btn-outline-secondary btn-sm mx-auto" style="max-width: 200px;">Return to Login</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

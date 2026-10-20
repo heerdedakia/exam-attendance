@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Roster & Import | COE Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb fs-7 mb-1">
+            <li class="breadcrumb-item"><a href="/admin" class="text-decoration-none">Admin Console</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Student Roster Management</li>
+        </ol>
+    </nav>
+
+    <!-- Header Banner -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-4 bg-white rounded-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <h4 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-user-graduate text-primary me-2"></i> Student Roster & Examination Allocations</h4>
+                    <p class="text-muted fs-7 mb-0">
+                        Enroll students into the master catalog, assign candidates to exam sessions, and import student batches via CSV.
+                    </p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary btn-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#createStudentModal">
+                        <i class="fa-solid fa-user-plus me-1"></i> + Add Student
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#quickBulkStudentModal">
+                        <i class="fa-solid fa-paste me-1"></i> Quick-Paste List
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#importStudentModal">
+                        <i class="fa-solid fa-file-import me-1"></i> Import CSV
+                    </button>
+                    <a href="/admin/students/sample_csv" class="btn btn-outline-dark btn-sm">
+                        <i class="fa-solid fa-download me-1"></i> Sample CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Results or Validation Errors Display -->
+    {% if import_result %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="fw-bold mb-0">CSV Import Processing Summary</h6>
+        </div>
+        <div class="card-body p-3">
+            <div class="d-flex gap-3 mb-3">
+                <span class="badge bg-success px-3 py-2 fs-7">Successfully Imported: {{ import_result.success_count }}</span>
+                <span class="badge bg-danger px-3 py-2 fs-7">Failed / Rejected: {{ import_result.errors|length }}</span>
+            </div>
+            {% if import_result.errors %}
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0 fs-7">
+                    <thead class="table-danger">
+                        <tr>
+                            <th>Row #</th>
+                            <th>USN / Data</th>
+                            <th>Error Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for err in import_result.errors %}
+                        <tr>
+                            <td class="fw-bold">{{ err.row }}</td>
+                            <td><code>{{ err.data }}</code></td>
+                            <td class="text-danger fw-semibold">{{ err.message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Students Catalog Table -->
+    <div class="card border-0 shadow-sm bg-white">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="fw-bold mb-0 text-dark">Master Student Directory ({{ students|length }})</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">USN</th>
+                            <th>Candidate Name</th>
+                            <th>Department</th>
+                            <th>Semester</th>
+                            <th>Email / Contact</th>
+                            <th>Registered At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in students %}
+                        <tr>
+                            <td class="ps-3 font-monospace fw-bold text-primary">{{ s.usn }}</td>
+                            <td class="fw-semibold text-dark">{{ s.student_name }}</td>
+                            <td><span class="badge bg-navy text-white font-monospace">{{ s.dept_code or 'CSE' }}</span></td>
+                            <td class="font-monospace">Sem {{ s.semester or 8 }}</td>
+                            <td class="text-muted fs-7">{{ s.email or '-' }}</td>
+                            <td class="text-muted fs-7">{{ s.created_at[:10] if s.created_at else '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No students in master catalog.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Add Individual Student Modal -->
+<div class="modal fade" id="createStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold"><i class="fa-solid fa-user-plus me-2"></i> Add Individual Student</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/students/create">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Student USN / Reg No <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace" name="usn" placeholder="e.g. 1MS21CS050" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="student_name" placeholder="e.g. Rahul Verma" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Department</label>
+                            <select class="form-select" name="department_id">
+                                {% for d in departments %}
+                                <option value="{{ d.id }}">{{ d.code }} - {{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Semester</label>
+                            <input type="number" class="form-control" name="semester" value="8" min="1" max="10">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Assign to Exam Session / Room (Optional)</label>
+                        <select class="form-select" name="session_id">
+                            <option value="">None (Master Catalog Only)</option>
+                            {% for s in sessions %}
+                            <option value="{{ s.id }}">{{ s.course_code }} - {{ s.room_number }} ({{ s.exam_date }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-7">If selected, student is assigned a desk and added to that hall's attendance roster.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Save Candidate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Bulk Paste Student List Modal -->
+<div class="modal fade" id="quickBulkStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold"><i class="fa-solid fa-paste me-2"></i> Quick-Paste Student List (No CSV Needed)</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/students/quick_bulk_add">
+                <div class="modal-body p-4">
+                    <p class="fs-7 text-muted mb-2">
+                        Paste candidate USNs and names below (one per line). Format: <code>USN, Full Name</code> or simply <code>USN</code>.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Paste Candidate List <span class="text-danger">*</span></label>
+                        <textarea class="form-control font-monospace fs-7" name="student_list_text" rows="7" 
+                                  placeholder="1MS21CS031, Aarav Patel&#10;1MS21CS032, Sneha Rao&#10;1MS21CS033, Vikram Singh&#10;1MS21CS034" required></textarea>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Department</label>
+                            <select class="form-select" name="department_id">
+                                {% for d in departments %}
+                                <option value="{{ d.id }}">{{ d.code }} - {{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Semester</label>
+                            <input type="number" class="form-control" name="semester" value="8" min="1" max="10">
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Assign to Exam Session / Room (Optional)</label>
+                        <select class="form-select" name="session_id">
+                            <option value="">None (Master Catalog Only)</option>
+                            {% for s in sessions %}
+                            <option value="{{ s.id }}">{{ s.course_code }} - {{ s.room_number }} ({{ s.exam_date }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Process & Enroll Candidates</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import Students CSV Modal -->
+<div class="modal fade" id="importStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">Import Students via CSV</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/students/import" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <p class="fs-7 text-muted">
+                        Upload a CSV file containing columns: <code>usn, student_name, department_code, semester</code>.
+                        Duplicate USNs will be flagged and reported.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Select CSV File <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="csv_file" accept=".csv" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Assign to Exam Session (Optional)</label>
+                        <select class="form-select" name="session_id">
+                            <option value="">None (Master Catalog Only)</option>
+                            {% for s in sessions %}
+                            <option value="{{ s.id }}">{{ s.course_code }} - {{ s.room_number }} ({{ s.exam_date }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-7">If selected, imported students will be immediately placed on that room's attendance roster.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">Upload & Validate CSV</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Examination Portal Login | COE ExamAttend{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center align-items-center min-vh-75">
+        <div class="col-11 col-sm-9 col-md-7 col-lg-5 col-xl-4">
+            
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <!-- Portal Brand Header -->
+                <div class="bg-navy p-4 text-center text-white">
+                    <div class="brand-icon-box mx-auto mb-3" style="width: 56px; height: 56px; font-size: 1.6rem; border-radius: 12px; background: rgba(255, 255, 255, 0.15);">
+                        <i class="fa-solid fa-graduation-cap text-warning"></i>
+                    </div>
+                    <h5 class="fw-bold mb-1">Controller of Examinations</h5>
+                    <p class="fs-7 text-white-50 mb-0">Barcode-Based Digital Attendance System</p>
+                </div>
+
+                <div class="card-body p-4 p-md-4">
+                    <h6 class="fw-bold text-dark text-center mb-3">Institutional Sign In</h6>
+
+                    {% if error %}
+                    <div class="alert alert-danger py-2 px-3 fs-7 d-flex align-items-center gap-2 mb-3" role="alert">
+                        <i class="fa-solid fa-circle-exclamation flex-shrink-0"></i>
+                        <div>{{ error }}</div>
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" action="/login" id="loginForm" novalidate>
+                        <!-- Username / Institutional Email -->
+                        <div class="mb-3">
+                            <label for="username" class="form-label fs-7 fw-bold text-muted text-uppercase">Username or Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-regular fa-user"></i></span>
+                                <input type="text" class="form-control border-start-0" id="username" name="username" 
+                                       placeholder="e.g. teachername, teacherramesh, or admin" required autofocus value="{{ username or '' }}">
+                            </div>
+                        </div>
+
+                        <!-- Password with Show/Hide Toggle -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="password" class="form-label fs-7 fw-bold text-muted text-uppercase mb-0">Password</label>
+                                <a href="/set_password" class="text-decoration-none fs-7 text-primary fw-semibold">
+                                    <i class="fa-solid fa-key me-1"></i>Set / Change Password
+                                </a>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-lock"></i></span>
+                                <input type="password" class="form-control border-start-0 border-end-0" id="password" name="password" 
+                                       placeholder="Enter your password" required>
+                                <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()">
+                                    <i class="fa-regular fa-eye" id="toggleEyeIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary fw-semibold py-2">
+                                <i class="fa-solid fa-right-to-bracket me-1"></i> Sign In to Portal
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Evaluator Demo Quick Fill Credentials Helper -->
+                    <div class="p-3 bg-light rounded-3 border mt-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="fs-7 fw-bold text-secondary text-uppercase"><i class="fa-solid fa-user-check text-primary me-1"></i> Quick Login (Click to Fill):</span>
+                        </div>
+                        <div class="d-grid gap-1">
+                            <button type="button" class="btn btn-xs btn-outline-primary text-start fs-7 py-1 px-2" 
+                                    onclick="fillCredentials('teachername', 'TeacherPass@2026')">
+                                <span class="fw-bold"><i class="fa-solid fa-chalkboard-user text-primary me-1"></i> Teacher:</span> <code>teachername</code> (Pass: TeacherPass@2026)
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-success text-start fs-7 py-1 px-2" 
+                                    onclick="fillCredentials('teacherramesh', 'TeacherPass@2026')">
+                                <span class="fw-bold"><i class="fa-solid fa-user me-1"></i> Teacher (CSE):</span> <code>teacherramesh</code> (Pass: TeacherPass@2026)
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-danger text-start fs-7 py-1 px-2" 
+                                    onclick="fillCredentials('admin', 'AdminPassword@2026')">
+                                <span class="fw-bold"><i class="fa-solid fa-shield-halved me-1"></i> Administrator:</span> <code>admin</code> (Pass: AdminPassword@2026)
+                            </button>
+                        </div>
+                        <div class="text-center mt-2">
+                            <a href="/set_password" class="fs-7 text-muted text-decoration-none">
+                                <i class="fa-solid fa-circle-question me-1"></i>Need to set or change your teacher password? Click here.
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <p class="text-center text-muted fs-7 mt-3">
+                <i class="fa-solid fa-shield-halved me-1"></i> Role-Based Server Authentication Enforced
+            </p>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePasswordVisibility() {
+        const pwdInput = document.getElementById('password');
+        const eyeIcon = document.getElementById('toggleEyeIcon');
+        if (pwdInput.type === 'password') {
+            pwdInput.type = 'text';
+            eyeIcon.className = 'fa-regular fa-eye-slash';
+        } else {
+            pwdInput.type = 'password';
+            eyeIcon.className = 'fa-regular fa-eye';
+        }
+    }
+
+    function fillCredentials(user, pwd) {
+        document.getElementById('username').value = user;
+        document.getElementById('password').value = pwd;
+    }
+</script>
+{% endblock %}

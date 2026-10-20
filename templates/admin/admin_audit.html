@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Trail & Logs | COE Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb fs-7 mb-1">
+            <li class="breadcrumb-item"><a href="/admin" class="text-decoration-none">Admin Console</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Audit Trail & Forensic Logs</li>
+        </ol>
+    </nav>
+
+    <!-- Header Banner -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-4 bg-white rounded-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <h4 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Digital Examination Audit Trail</h4>
+                    <p class="text-muted fs-7 mb-0">
+                        Immutable, time-stamped transaction log capturing all barcode scans, duplicate attempts, redo corrections, submission locks, and COE emergency overrides.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="card border-0 shadow-sm bg-white">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="fw-bold mb-0 text-dark">Forensic Event Log (Showing latest {{ logs|length }} events)</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 font-sans">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 170px;">Timestamp</th>
+                            <th>Action Type</th>
+                            <th>Target USN</th>
+                            <th>Status Transition</th>
+                            <th>Booklet Barcode</th>
+                            <th>Invigilator / Actor</th>
+                            <th>Client IP</th>
+                            <th>Reason / Operational Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in logs %}
+                        <tr>
+                            <td class="ps-3 text-muted fs-7 font-monospace">{{ l.timestamp }}</td>
+                            <td>
+                                {% if l.action_type == 'MARK_PRESENT' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-7">MARK_PRESENT</span>
+                                {% elif l.action_type == 'MARK_ABSENT' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-7">MARK_ABSENT</span>
+                                {% elif l.action_type == 'REDO_CORRECTION' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-7">REDO_CORRECTION</span>
+                                {% elif l.action_type == 'LOCK_SUBMISSION' %}
+                                    <span class="badge bg-danger text-white fs-7">LOCK_SUBMISSION</span>
+                                {% elif l.action_type == 'UNLOCK_OVERRIDE' %}
+                                    <span class="badge bg-dark text-white fs-7">UNLOCK_OVERRIDE</span>
+                                {% elif l.action_type == 'BARCODE_REJECTED' %}
+                                    <span class="badge bg-danger text-white fs-7">BARCODE_REJECTED</span>
+                                {% else %}
+                                    <span class="badge bg-secondary text-white fs-7">{{ l.action_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="font-monospace fw-bold">{{ l.usn or '-' }}</td>
+                            <td class="fs-7">
+                                {% if l.old_status or l.new_status %}
+                                    <span class="text-muted">{{ l.old_status or 'None' }}</span> &rarr; 
+                                    <strong class="text-dark">{{ l.new_status or 'None' }}</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if l.qp_barcode %}
+                                    <code class="text-primary font-monospace fs-7">{{ l.qp_barcode }}</code>
+                                {% else %}
+                                    <span class="text-muted fs-7">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="fs-7">
+                                <strong>{{ l.invigilator_name or 'System' }}</strong><br>
+                                <span class="text-muted font-monospace">{{ l.invigilator_id }}</span>
+                            </td>
+                            <td class="text-muted font-monospace fs-7">{{ l.client_ip or '127.0.0.1' }}</td>
+                            <td class="fs-7 text-dark" style="max-width: 280px;">
+                                {{ l.reason or '-' }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No audit trail records logged yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

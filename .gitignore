@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+test_*.db
+test_*.xlsx
+*.log
+.vscode/
+.idea/
