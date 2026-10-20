@@ -24,7 +24,7 @@
                         <h4 class="fw-bold mb-0 text-dark">{{ department.name }}</h4>
                     </div>
                     <p class="text-muted fs-7 mb-0">
-                        Assigned Examination Classrooms & Subject Schedules. Select an ongoing exam to take attendance, or add/manage rooms and schedules.
+                        Assigned Examination Classrooms & Subject Schedules. Select an ongoing exam to take attendance.
                     </p>
                 </div>
                 
@@ -79,44 +79,74 @@
                             <span class="fs-7 fw-bold text-muted text-uppercase">
                                 <i class="fa-solid fa-book-open text-primary me-1"></i> Scheduled Subjects:
                             </span>
+                            {% if session.get('role') == 'ADMIN' %}
                             <button class="btn btn-xs btn-outline-primary py-1 px-2 fs-7" onclick="openScheduleNextModal({{ room.classroom_id }}, '{{ room.room_number }}')">
                                 <i class="fa-solid fa-plus me-1"></i> Add Subject Exam
                             </button>
+                            {% endif %}
                         </div>
 
                         <div class="list-group mb-3">
                             {% for s in room.sessions %}
-                            <div class="list-group-item list-group-item-action p-3 border rounded-3 mb-2 {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' %}bg-light{% else %}bg-white border-primary-subtle shadow-sm{% endif %}">
+                            <div class="list-group-item list-group-item-action p-3 border rounded-3 mb-2 {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' or s.time_window.status == 'CONCLUDED' %}bg-light{% else %}bg-white border-primary-subtle shadow-sm{% endif %}">
                                 <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
                                     <div class="w-100">
                                         <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                                             <span class="badge bg-primary text-white font-monospace fs-7">{{ s.course_code }}</span>
                                             <strong class="text-dark fs-6">{{ s.course_name }}</strong>
+                                            
                                             {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' %}
                                                 <span class="badge bg-danger text-white fs-7"><i class="fa-solid fa-lock me-1"></i> LOCKED</span>
+                                            {% elif s.time_window.status == 'UPCOMING' %}
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-7">
+                                                    <i class="fa-regular fa-clock me-1"></i> {{ s.time_window.badge_text }}
+                                                </span>
+                                            {% elif s.time_window.status == 'ACTIVE' %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle fs-7">
+                                                    <i class="fa-solid fa-qrcode me-1"></i> READY TO SCAN
+                                                </span>
                                             {% else %}
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle fs-7"><i class="fa-solid fa-qrcode me-1"></i> READY TO SCAN</span>
+                                                <span class="badge bg-secondary-subtle text-secondary border fs-7">
+                                                    <i class="fa-solid fa-hourglass-end me-1"></i> CONCLUDED
+                                                </span>
                                             {% endif %}
                                         </div>
                                         <div class="fs-7 text-muted d-flex flex-wrap gap-2 gap-sm-3 mt-1">
                                             <span><i class="fa-regular fa-calendar me-1"></i> {{ s.exam_date }}</span>
-                                            <span><i class="fa-regular fa-clock me-1"></i> {{ s.exam_session }}</span>
+                                            <span><i class="fa-regular fa-clock me-1"></i> {{ s.time_window.start_display }} - {{ s.time_window.end_display }}</span>
                                             <span class="text-primary fw-semibold"><i class="fa-solid fa-users me-1"></i> {{ s.present_count }}/{{ s.total_students }} Present ({{ s.completion_pct }}%)</span>
                                         </div>
                                     </div>
 
                                     <div class="d-flex align-items-center gap-1 w-100 w-sm-auto justify-content-end mt-2 mt-sm-0">
-                                        {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' %}
+                                        {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' or s.time_window.status == 'CONCLUDED' %}
                                             <a href="/sessions/{{ s.id }}/roster" class="btn btn-outline-secondary btn-sm px-3 flex-grow-1 flex-sm-grow-0" title="View Finalized Roster">
                                                 <i class="fa-solid fa-eye me-1"></i> View
                                             </a>
                                             <a href="/download_report/{{ s.id }}" class="btn btn-success btn-sm px-3 flex-grow-1 flex-sm-grow-0" title="Download Official COE Excel Report">
                                                 <i class="fa-solid fa-file-excel"></i>
                                             </a>
+                                        {% elif s.time_window.status == 'UPCOMING' %}
+                                            {% if session.get('role') == 'ADMIN' %}
+                                            <a href="/sessions/{{ s.id }}/roster" class="btn btn-warning btn-sm px-3 fw-semibold flex-grow-1 flex-sm-grow-0" title="Admin Early Scan Override">
+                                                <i class="fa-solid fa-camera me-1"></i> Scan (Admin)
+                                            </a>
+                                            {% else %}
+                                            <a href="/sessions/{{ s.id }}/roster" class="btn btn-outline-secondary btn-sm px-3 flex-grow-1 flex-sm-grow-0" title="{{ s.time_window.message }}">
+                                                <i class="fa-regular fa-clock me-1"></i> Opens {{ s.time_window.start_display }}
+                                            </a>
+                                            {% endif %}
                                         {% else %}
                                             <a href="/sessions/{{ s.id }}/roster" class="btn btn-primary btn-sm px-3 fw-semibold flex-grow-1 flex-sm-grow-0">
                                                 <i class="fa-solid fa-camera me-1"></i> Scan Roster
                                             </a>
+                                        {% endif %}
+
+                                        {% if session.get('role') == 'ADMIN' %}
+                                        <button class="btn btn-outline-secondary btn-sm py-1 px-2" title="Edit Date & Time Schedule"
+                                                onclick="openEditScheduleModal({{ s.id }}, '{{ s.course_code }}', '{{ s.course_name }}', '{{ s.exam_date }}', '{{ s.start_time or '09:30' }}', '{{ s.end_time or '12:30' }}')">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -130,15 +160,17 @@
 
                     </div>
 
-                    <!-- Room Footer Action -->
+                    <!-- Room Footer Action (Administrator Only) -->
+                    {% if session.get('role') == 'ADMIN' %}
                     <div class="pt-3 border-top d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
                         <span class="fs-7 text-muted">
-                            <i class="fa-solid fa-circle-check text-success me-1"></i> Auto-loads candidate roster
+                            <i class="fa-solid fa-circle-check text-success me-1"></i> Administrator: Setup Subject Exams
                         </span>
                         <button class="btn btn-outline-primary btn-sm fw-semibold w-100 w-sm-auto" onclick="openScheduleNextModal({{ room.classroom_id }}, '{{ room.room_number }}')">
-                            <i class="fa-solid fa-calendar-plus me-1"></i> Start Next Subject Exam
+                            <i class="fa-solid fa-calendar-plus me-1"></i> + Schedule Next Subject Exam
                         </button>
                     </div>
+                    {% endif %}
 
                 </div>
             </div>
@@ -149,9 +181,11 @@
                 <i class="fa-solid fa-door-closed text-muted fs-1 mb-3"></i>
                 <h5 class="fw-bold text-dark">No Classrooms Configured</h5>
                 <p class="text-muted fs-7 mb-3">No examination halls are currently configured for this department.</p>
+                {% if session.get('role') == 'ADMIN' %}
                 <button class="btn btn-primary btn-sm px-4 fw-semibold mx-auto" data-bs-toggle="modal" data-bs-target="#quickAddRoomModal">
                     <i class="fa-solid fa-plus me-1"></i> Add First Classroom
                 </button>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -159,13 +193,14 @@
 
 </div>
 
-<!-- Schedule Next Subject Modal -->
+{% if session.get('role') == 'ADMIN' %}
+<!-- Schedule Next Subject Modal (Administrator Only) -->
 <div class="modal fade" id="scheduleNextSubjectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-navy text-white py-3">
                 <h6 class="modal-title fw-bold">
-                    <i class="fa-solid fa-calendar-plus text-primary me-2"></i> Schedule Next Subject Exam
+                    <i class="fa-solid fa-calendar-plus text-primary me-2"></i> Schedule Subject Exam (Administrator)
                 </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -212,18 +247,41 @@
                         </div>
                     </div>
 
-                    <div class="row g-2 mb-3">
-                        <div class="col-12 col-sm-6">
-                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
+                    <!-- Exam Date & Time Window -->
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="fs-7 fw-bold text-muted text-uppercase mb-2">
+                            <i class="fa-regular fa-clock text-primary me-1"></i> Exam Date & Time Window (Attendance Access)
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label class="form-label fs-7 fw-semibold text-dark mb-1">Exam Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="modalExamDate" name="exam_date" required>
                         </div>
-                        <div class="col-12 col-sm-6">
-                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Session <span class="text-danger">*</span></label>
-                            <select class="form-select" id="modalExamSession" name="exam_session">
-                                <option value="Morning (09:30 AM - 12:30 PM)">Morning (09:30 AM - 12:30 PM)</option>
-                                <option value="Afternoon (02:00 PM - 05:00 PM)">Afternoon (02:00 PM - 05:00 PM)</option>
-                            </select>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fs-7 fw-semibold text-dark mb-1">Start Time (Opens) <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="modalStartTime" name="start_time" value="09:30" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fs-7 fw-semibold text-dark mb-1">End Time (Closes) <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="modalEndTime" name="end_time" value="12:30" required>
+                            </div>
                         </div>
+
+                        <!-- Quick Time Presets -->
+                        <div class="d-flex flex-wrap gap-1 mt-2">
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setTimePreset('09:30', '12:30')">
+                                🌅 Morning (09:30 AM - 12:30 PM)
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setTimePreset('14:00', '17:00')">
+                                🌇 Afternoon (02:00 PM - 05:00 PM)
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 fs-7" onclick="setOpenNowPreset()">
+                                ⚡ Open Right Now (Testing / Live Demo)
+                            </button>
+                        </div>
+                        <div class="form-text fs-7 mt-1">Attendance scanning is strictly permitted only during these scheduled hours.</div>
                     </div>
 
                     <!-- Auto-copy Student Roster Feature -->
@@ -231,11 +289,11 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="modalCopyStudents" name="copy_students" checked>
                             <label class="form-check-label fs-7 fw-bold text-success-emphasis" for="modalCopyStudents">
-                                <i class="fa-solid fa-users-gear me-1"></i> Auto-copy candidate list from this room
+                                <i class="fa-solid fa-users-gear me-1"></i> Auto-copy candidate roster from this room
                             </label>
                         </div>
                         <div class="fs-7 text-muted mt-1 ms-4">
-                            All students assigned to this classroom are automatically carried forward with fresh <code>PENDING</code> status. You do <strong>not</strong> need to re-import student rosters!
+                            All students assigned to this classroom are automatically carried forward with fresh <code>PENDING</code> status.
                         </div>
                     </div>
 
@@ -243,7 +301,7 @@
                 <div class="modal-footer bg-light py-2">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold" id="btnSubmitScheduleNext">
-                        <i class="fa-solid fa-check me-1"></i> Start Subject Exam & Open Roster
+                        <i class="fa-solid fa-check me-1"></i> Schedule Subject Exam
                     </button>
                 </div>
             </form>
@@ -251,7 +309,70 @@
     </div>
 </div>
 
-{% if session.get('role') == 'ADMIN' %}
+<!-- Edit Schedule Modal (Change Date, Start Time & End Time) -->
+<div class="modal fade" id="editScheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">
+                    <i class="fa-solid fa-pen text-primary me-2"></i> Edit Subject Exam Schedule
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editScheduleForm" onsubmit="submitEditSchedule(event)">
+                <input type="hidden" id="editSessionId" value="">
+                <div class="modal-body p-3 p-md-4">
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Subject Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control font-monospace" id="editCourseCode" required>
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Subject Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editCourseName" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="editExamDate" required>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time (Opens) <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="editStartTime" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time (Closes) <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="editEndTime" required>
+                        </div>
+                    </div>
+
+                    <!-- Presets -->
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setEditTimePreset('09:30', '12:30')">
+                            🌅 09:30 AM - 12:30 PM
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setEditTimePreset('14:00', '17:00')">
+                            🌇 02:00 PM - 05:00 PM
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 fs-7" onclick="setEditOpenNowPreset()">
+                            ⚡ Open Right Now (Live Testing)
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold" id="btnSubmitEditSchedule">
+                        <i class="fa-solid fa-save me-1"></i> Save Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Add Classroom Modal (Administrator Only) -->
 <div class="modal fade" id="quickAddRoomModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -281,9 +402,6 @@
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">Desk Seating Capacity <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" name="capacity" value="40" min="1" max="1000" required>
                         </div>
-                    </div>
-                    <div class="form-text fs-7">
-                        <i class="fa-solid fa-circle-info text-primary me-1"></i> You can adjust desk capacity or move rooms between departments anytime.
                     </div>
                 </div>
                 <div class="modal-footer bg-light py-2">
@@ -352,6 +470,7 @@
 <script>
     let scheduleModal = null;
     let editModalInstance = null;
+    let editScheduleModalInstance = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         const schedEl = document.getElementById('scheduleNextSubjectModal');
@@ -360,16 +479,74 @@
         const editEl = document.getElementById('editRoomModal');
         if (editEl) editModalInstance = new bootstrap.Modal(editEl);
 
+        const editSchedEl = document.getElementById('editScheduleModal');
+        if (editSchedEl) editScheduleModalInstance = new bootstrap.Modal(editSchedEl);
+
         const dateInput = document.getElementById('modalExamDate');
         if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
     });
 
     function openScheduleNextModal(classroomId, roomNumber) {
+        if (!scheduleModal) return;
         document.getElementById('modalClassroomId').value = classroomId;
         document.getElementById('modalRoomTitle').textContent = roomNumber;
         document.getElementById('modalCourseCode').value = '';
         document.getElementById('modalCourseName').value = '';
+        document.getElementById('modalStartTime').value = '09:30';
+        document.getElementById('modalEndTime').value = '12:30';
+        document.getElementById('modalExamDate').value = new Date().toISOString().split('T')[0];
         scheduleModal.show();
+    }
+
+    function openEditScheduleModal(sessionId, code, name, date, start, end) {
+        if (!editScheduleModalInstance) return;
+        document.getElementById('editSessionId').value = sessionId;
+        document.getElementById('editCourseCode').value = code;
+        document.getElementById('editCourseName').value = name;
+        document.getElementById('editExamDate').value = date;
+        document.getElementById('editStartTime').value = start || '09:30';
+        document.getElementById('editEndTime').value = end || '12:30';
+        editScheduleModalInstance.show();
+    }
+
+    function setTimePreset(start, end) {
+        document.getElementById('modalStartTime').value = start;
+        document.getElementById('modalEndTime').value = end;
+    }
+
+    function setOpenNowPreset() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        document.getElementById('modalExamDate').value = `${y}-${m}-${d}`;
+        
+        // Start 15 mins ago, end 3 hours from now
+        const startH = String(Math.max(0, now.getHours() - 1)).padStart(2, '0');
+        const startM = String(now.getMinutes()).padStart(2, '0');
+        const endH = String(Math.min(23, now.getHours() + 3)).padStart(2, '0');
+        const endM = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('modalStartTime').value = `${startH}:${startM}`;
+        document.getElementById('modalEndTime').value = `${endH}:${endM}`;
+    }
+
+    function setEditTimePreset(start, end) {
+        document.getElementById('editStartTime').value = start;
+        document.getElementById('editEndTime').value = end;
+    }
+
+    function setEditOpenNowPreset() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        document.getElementById('editExamDate').value = `${y}-${m}-${d}`;
+        const startH = String(Math.max(0, now.getHours() - 1)).padStart(2, '0');
+        const startM = String(now.getMinutes()).padStart(2, '0');
+        const endH = String(Math.min(23, now.getHours() + 3)).padStart(2, '0');
+        const endM = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('editStartTime').value = `${startH}:${startM}`;
+        document.getElementById('editEndTime').value = `${endH}:${endM}`;
     }
 
     function openEditRoomModal(roomId, roomNumber, building, capacity, deptId) {
@@ -392,7 +569,8 @@
         const code = document.getElementById('modalCourseCode').value.trim();
         const name = document.getElementById('modalCourseName').value.trim();
         const date = document.getElementById('modalExamDate').value;
-        const sess = document.getElementById('modalExamSession').value;
+        const start = document.getElementById('modalStartTime').value;
+        const end = document.getElementById('modalEndTime').value;
         const copy = document.getElementById('modalCopyStudents').checked;
 
         const btn = document.getElementById('btnSubmitScheduleNext');
@@ -406,7 +584,9 @@
                 course_code: code,
                 course_name: name,
                 exam_date: date,
-                exam_session: sess,
+                start_time: start,
+                end_time: end,
+                exam_session: `Session (${start} - ${end})`,
                 copy_students: copy
             })
         })
@@ -420,7 +600,7 @@
                     timer: 1800,
                     showConfirmButton: false
                 }).then(() => {
-                    window.location.href = body.redirect_url;
+                    window.location.reload();
                 });
             } else {
                 Swal.fire('Error', body.message || 'Could not schedule subject.', 'error');
@@ -428,6 +608,53 @@
         })
         .catch(() => {
             Swal.fire('Network Error', 'Failed to communicate with server.', 'error');
+        })
+        .finally(() => {
+            btn.disabled = false;
+        });
+    }
+
+    function submitEditSchedule(e) {
+        e.preventDefault();
+        const sessionId = document.getElementById('editSessionId').value;
+        const code = document.getElementById('editCourseCode').value.trim();
+        const name = document.getElementById('editCourseName').value.trim();
+        const date = document.getElementById('editExamDate').value;
+        const start = document.getElementById('editStartTime').value;
+        const end = document.getElementById('editEndTime').value;
+
+        const btn = document.getElementById('btnSubmitEditSchedule');
+        btn.disabled = true;
+
+        fetch(`/api/session/${sessionId}/update_schedule`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_code: code,
+                course_name: name,
+                exam_date: date,
+                start_time: start,
+                end_time: end
+            })
+        })
+        .then(res => res.json().then(data => ({ status: res.status, body: data })))
+        .then(({ status, body }) => {
+            if (status === 200 && body.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Schedule Updated!',
+                    text: body.message,
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire('Error', body.message || 'Could not update schedule.', 'error');
+            }
+        })
+        .catch(() => {
+            Swal.fire('Network Error', 'Failed to update schedule.', 'error');
         })
         .finally(() => {
             btn.disabled = false;

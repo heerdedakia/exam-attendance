@@ -127,6 +127,8 @@ def init_db(db_path=None):
         course_name TEXT NOT NULL,
         exam_date TEXT NOT NULL,
         exam_session TEXT NOT NULL,
+        start_time TEXT DEFAULT '09:30',
+        end_time TEXT DEFAULT '12:30',
         room_number TEXT NOT NULL,
         qp_code TEXT NOT NULL,
         invigilator_name TEXT NOT NULL,
@@ -240,6 +242,8 @@ def init_db(db_path=None):
     ensure_column_exists(cursor, 'exam_sessions', 'classroom_id', 'INTEGER')
     ensure_column_exists(cursor, 'exam_sessions', 'invigilator_user_id', 'INTEGER')
     ensure_column_exists(cursor, 'exam_sessions', 'submitted_at', 'TEXT')
+    ensure_column_exists(cursor, 'exam_sessions', 'start_time', "TEXT DEFAULT '09:30'")
+    ensure_column_exists(cursor, 'exam_sessions', 'end_time', "TEXT DEFAULT '12:30'")
     ensure_column_exists(cursor, 'students', 'student_master_id', 'INTEGER')
     ensure_column_exists(cursor, 'audit_trail', 'user_id', 'INTEGER')
 
@@ -248,6 +252,10 @@ def init_db(db_path=None):
     cursor.execute("UPDATE users SET username = 'priya.cs' WHERE username IN ('teacher_priya', 'teacherpriya')")
     cursor.execute("UPDATE users SET username = 'arun.ec' WHERE username IN ('teacher_arun', 'teacherarun')")
     cursor.execute("UPDATE users SET username = 'teacher.cs' WHERE username IN ('teachername', 'teacher_name')")
+
+    # Set proper start_time and end_time for known session strings
+    cursor.execute("UPDATE exam_sessions SET start_time = '14:00', end_time = '17:00' WHERE exam_session LIKE '%Afternoon%' OR exam_session LIKE '%02:00%'")
+    cursor.execute("UPDATE exam_sessions SET start_time = '09:30', end_time = '12:30' WHERE exam_session LIKE '%Morning%' OR exam_session LIKE '%09:30%'")
 
     conn.commit()
     conn.close()

@@ -8,11 +8,11 @@ import io
 import csv
 import re
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import (
     Flask, render_template, request, jsonify, send_file, redirect,
-    url_for, session, flash, Response
+    url_for, session, flash, Response, has_request_context
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -92,6 +92,123 @@ def check_session_access(session_id):
     if row['invigilator_user_id'] == session.get('user_id'):
         return True
     return check_department_access(row['department_id'])
+
+
+def get_session_window_status(session_row):
+    """
+    Evaluates whether the examination attendance window is:
+    - 'LOCKED' (finalized & submitted)
+    - 'UPCOMING' (before exam start time or future date)
+    - 'ACTIVE' (currently within exam date and start/end time window)
+    - 'CONCLUDED' (after exam end time or past date)
+    
+    Admins can always override and test/scan anytime.
+    """
+    if not session_row:
+        return {'status': 'NOT_STARTED', 'is_open': False, 'can_scan': False, 'label': 'No Exam', 'start_display': '09:30 AM', 'end_display': '12:30 PM'}
+    
+    if session_row.get('status') in ('LOCKED', 'SUBMITTED'):
+        return {
+            'status': 'LOCKED',
+            'is_open': False,
+            'can_scan': False,
+            'badge_class': 'bg-danger text-white',
+            'badge_icon': 'fa-lock',
+            'badge_text': 'LOCKED',
+            'label': 'Finalized & Locked',
+            'start_display': '09:30 AM',
+            'end_display': '12:30 PM',
+            'message': 'Attendance submission was finalized and locked.'
+        }
+    
+    exam_date_str = session_row.get('exam_date') or ''
+    start_time_str = session_row.get('start_time') or '09:30'
+    end_time_str = session_row.get('end_time') or '12:30'
+    session_str = session_row.get('exam_session') or ''
+    
+    # Fallback parsing from exam_session text if start/end times not set
+    if 'Afternoon' in session_str or '02:00' in session_str or '2:00' in session_str:
+        if not session_row.get('start_time'): start_time_str = '14:00'
+        if not session_row.get('end_time'): end_time_str = '17:00'
+    elif 'Morning' in session_str or '09:30' in session_str or '9:30' in session_str:
+        if not session_row.get('start_time'): start_time_str = '09:30'
+        if not session_row.get('end_time'): end_time_str = '12:30'
+
+    now = datetime.now()
+    is_admin = False
+    if has_request_context():
+        try:
+            is_admin = session.get('role') == 'ADMIN'
+        except Exception:
+            is_admin = False
+    
+    try:
+        parts = [int(p) for p in exam_date_str.split('-')]
+        sh, sm = [int(x) for x in start_time_str.split(':')[:2]]
+        eh, em = [int(x) for x in end_time_str.split(':')[:2]]
+        
+        start_dt = datetime(parts[0], parts[1], parts[2], sh, sm, 0)
+        end_dt = datetime(parts[0], parts[1], parts[2], eh, em, 0)
+        if end_dt <= start_dt:
+            end_dt += timedelta(days=1)
+        
+        start_display = start_dt.strftime("%I:%M %p")
+        end_display = end_dt.strftime("%I:%M %p")
+        
+        if now < start_dt:
+            is_today = (now.date() == start_dt.date())
+            when_txt = f"Today at {start_display}" if is_today else f"{start_dt.strftime('%b %d')} at {start_display}"
+            return {
+                'status': 'UPCOMING',
+                'is_open': False,
+                'can_scan': is_admin,
+                'badge_class': 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+                'badge_icon': 'fa-regular fa-clock',
+                'badge_text': f'OPENS {start_display}',
+                'label': f'Opens {when_txt}',
+                'start_display': start_display,
+                'end_display': end_display,
+                'message': f"Exam attendance opens on {exam_date_str} at {start_display}. (Current server time: {now.strftime('%I:%M %p')})"
+            }
+        elif start_dt <= now <= end_dt:
+            return {
+                'status': 'ACTIVE',
+                'is_open': True,
+                'can_scan': True,
+                'badge_class': 'bg-success-subtle text-success border border-success-subtle',
+                'badge_icon': 'fa-solid fa-qrcode',
+                'badge_text': 'READY TO SCAN',
+                'label': f'Active Exam ({start_display} - {end_display})',
+                'start_display': start_display,
+                'end_display': end_display,
+                'message': f"Attendance window is currently active ({start_display} - {end_display})."
+            }
+        else:
+            return {
+                'status': 'CONCLUDED',
+                'is_open': False,
+                'can_scan': is_admin,
+                'badge_class': 'bg-secondary-subtle text-secondary border',
+                'badge_icon': 'fa-solid fa-hourglass-end',
+                'badge_text': 'CONCLUDED',
+                'label': f'Concluded at {end_display}',
+                'start_display': start_display,
+                'end_display': end_display,
+                'message': f"Exam session concluded at {end_display} on {exam_date_str}."
+            }
+    except Exception as e:
+        return {
+            'status': 'ACTIVE',
+            'is_open': True,
+            'can_scan': True,
+            'badge_class': 'bg-success-subtle text-success border border-success-subtle',
+            'badge_icon': 'fa-solid fa-qrcode',
+            'badge_text': 'READY TO SCAN',
+            'label': 'Ready to Scan',
+            'start_display': '09:30 AM',
+            'end_display': '12:30 PM',
+            'message': 'Attendance window open.'
+        }
 
 
 # ----------------- Authentication Routes -----------------
@@ -309,6 +426,8 @@ def classrooms_view(dept_id):
                 e.course_code,
                 e.course_name,
                 e.exam_date,
+                e.start_time,
+                e.end_time,
                 e.exam_session,
                 e.qp_code,
                 e.invigilator_name,
@@ -329,10 +448,13 @@ def classrooms_view(dept_id):
             tot = s.get('total_students') or 0
             pres = s.get('present_count') or 0
             s['completion_pct'] = round((pres / tot * 100), 1) if tot > 0 else 0.0
+            s['time_window'] = get_session_window_status(s)
 
         r['sessions'] = room_sessions
-        # Select active session (first non-locked, or last one)
-        active_sess = next((s for s in room_sessions if s['status'] != 'LOCKED'), room_sessions[-1] if room_sessions else None)
+        # Select active session (first active, then first upcoming, or last one)
+        active_sess = next((s for s in room_sessions if s['time_window']['status'] == 'ACTIVE'), 
+                      next((s for s in room_sessions if s['time_window']['status'] == 'UPCOMING'), 
+                      next((s for s in room_sessions if s['status'] != 'LOCKED'), room_sessions[-1] if room_sessions else None)))
 
         if active_sess:
             r.update(active_sess)
@@ -383,6 +505,7 @@ def session_roster_view(session_id):
         return "Exam session not found.", 404
 
     session_data = dict(session_row)
+    session_data['time_window'] = get_session_window_status(session_data)
 
     # Get student roster
     cursor.execute('''
@@ -421,12 +544,12 @@ def session_roster_view(session_id):
 
 
 @app.route('/api/session/create_or_clone', methods=['POST'])
-@login_required
+@admin_required
 def create_or_clone_session():
     """
-    Creates or schedules the next subject examination for a classroom
-    (e.g., Mathematics, DSA, ADLD, QCE) and automatically clones the student roster
-    with clean PENDING status so teachers never have to re-import students.
+    Administrator-only: Schedules a subject examination for a classroom,
+    configures subject code, name, exam date, start time, end time, and
+    automatically carries forward candidate roster with clean PENDING status.
     """
     data = request.get_json() or request.form
     classroom_id = data.get('classroom_id')
@@ -434,7 +557,9 @@ def create_or_clone_session():
     course_code = (data.get('course_code') or '').strip().upper()
     course_name = (data.get('course_name') or '').strip()
     exam_date = data.get('exam_date') or datetime.now().strftime("%Y-%m-%d")
-    exam_session = data.get('exam_session') or 'Morning (09:30 AM - 12:30 PM)'
+    start_time = (data.get('start_time') or '09:30').strip()
+    end_time = (data.get('end_time') or '12:30').strip()
+    exam_session = data.get('exam_session') or f"Session ({start_time} - {end_time})"
     qp_code = (data.get('qp_code') or f"QP-2026-{course_code}-A").strip().upper()
     copy_students = str(data.get('copy_students', 'true')).lower() in ('true', '1', 'yes', 'on')
 
@@ -457,15 +582,15 @@ def create_or_clone_session():
         cursor.execute('''
             INSERT INTO exam_sessions (
                 exam_id, department_id, classroom_id, course_code, course_name, exam_date,
-                exam_session, room_number, qp_code, invigilator_name, invigilator_id,
+                start_time, end_time, exam_session, room_number, qp_code, invigilator_name, invigilator_id,
                 invigilator_user_id, status
             ) VALUES (
                 1, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?,
                 ?, 'IN_PROGRESS'
             )
         ''', (room['department_id'], classroom_id, course_code, course_name, exam_date,
-              exam_session, room['room_number'], qp_code, invigilator_name, invigilator_id, user_id))
+              start_time, end_time, exam_session, room['room_number'], qp_code, invigilator_name, invigilator_id, user_id))
         new_session_id = cursor.lastrowid
 
         # Copy students from source session if requested
@@ -486,14 +611,48 @@ def create_or_clone_session():
 
         return jsonify({
             'success': True,
-            'message': f"New examination session for {course_code} ({course_name}) created successfully. Roster loaded and ready for scanning!",
+            'message': f"New examination session for {course_code} ({course_name}) scheduled for {exam_date} ({start_time} - {end_time}).",
             'session_id': new_session_id,
-            'redirect_url': f"/sessions/{new_session_id}/roster"
+            'redirect_url': f"/departments/{room['department_id']}/classrooms"
         })
 
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'message': f"Error: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/session/<int:session_id>/update_schedule', methods=['POST'])
+@admin_required
+def update_session_schedule(session_id):
+    """
+    Administrator-only: Update subject details, exam date, start time, and end time.
+    """
+    data = request.get_json() or request.form
+    course_code = (data.get('course_code') or '').strip().upper()
+    course_name = (data.get('course_name') or '').strip()
+    exam_date = (data.get('exam_date') or '').strip()
+    start_time = (data.get('start_time') or '09:30').strip()
+    end_time = (data.get('end_time') or '12:30').strip()
+    exam_session = data.get('exam_session') or f"Session ({start_time} - {end_time})"
+
+    if not course_code or not course_name or not exam_date:
+        return jsonify({'success': False, 'message': 'Course code, course name, and exam date are required.'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            UPDATE exam_sessions
+            SET course_code = ?, course_name = ?, exam_date = ?, start_time = ?, end_time = ?, exam_session = ?
+            WHERE id = ?
+        ''', (course_code, course_name, exam_date, start_time, end_time, exam_session, session_id))
+        conn.commit()
+        return jsonify({'success': True, 'message': f"Schedule for {course_code} updated to {exam_date} ({start_time} - {end_time})."})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f"Error updating schedule: {str(e)}"}), 500
     finally:
         conn.close()
 
@@ -626,6 +785,17 @@ def mark_attendance():
                 'success': False,
                 'locked': True,
                 'message': 'This examination session is LOCKED. Attendance submission was finalized. Modifications are restricted.'
+            }), 403
+
+        # Enforce Exam Time and Date Window (unless Administrator)
+        time_status = get_session_window_status(dict(session_row))
+        if not time_status['is_open'] and session.get('role') != 'ADMIN':
+            return jsonify({
+                'success': False,
+                'locked': True,
+                'is_window_closed': True,
+                'time_window': time_status,
+                'message': f"EXAMINATION WINDOW NOT ACTIVE: {time_status['message']}"
             }), 403
 
         # 2. Check if student belongs to assigned roster
@@ -801,6 +971,18 @@ def mark_absent():
         session_row = cursor.fetchone()
         if session_row and session_row['status'] in ('LOCKED', 'SUBMITTED'):
             return jsonify({'success': False, 'locked': True, 'message': 'Session is LOCKED. Cannot modify.'}), 403
+
+        # Enforce Exam Time and Date Window (unless Administrator)
+        if session_row:
+            time_status = get_session_window_status(dict(session_row))
+            if not time_status['is_open'] and session.get('role') != 'ADMIN':
+                return jsonify({
+                    'success': False,
+                    'locked': True,
+                    'is_window_closed': True,
+                    'time_window': time_status,
+                    'message': f"EXAMINATION WINDOW NOT ACTIVE: {time_status['message']}"
+                }), 403
 
         cursor.execute('SELECT * FROM students WHERE session_id = ? AND usn = ?', (session_id, usn))
         student = cursor.fetchone()
