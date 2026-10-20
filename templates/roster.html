@@ -616,6 +616,18 @@
                     </div>
 
                     <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Hall <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="rosterRoomNumber" value="{{ session_data.room_number }}" placeholder="e.g. CS101, Room 302" required>
+                            <div class="form-text fs-7">Type any room code like <code>CS101</code>.</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="rosterExamDate" value="{{ session_data.exam_date }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
                         <div class="col-4">
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">Subject Code <span class="text-danger">*</span></label>
                             <input type="text" class="form-control font-monospace" id="rosterCourseCode" required placeholder="e.g. CS302">
@@ -626,33 +638,25 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="rosterExamDate" value="{{ session_data.exam_date }}" required>
-                    </div>
-
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time <span class="text-danger">*</span></label>
-                            <input type="time" class="form-control" id="rosterStartTime" value="09:30" required>
+                    <!-- Exam Timings (Custom College Hours) -->
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="fs-7 fw-bold text-muted text-uppercase mb-2">
+                            <i class="fa-regular fa-clock text-primary me-1"></i> Exam Timings (College Custom Schedule)
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time <span class="text-danger">*</span></label>
-                            <input type="time" class="form-control" id="rosterEndTime" value="12:30" required>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time (Opens) <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="rosterStartTime" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time (Closes) <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="rosterEndTime" required>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fs-7 fw-bold text-muted text-uppercase mb-1">Time Presets:</label>
-                        <div class="d-flex flex-wrap gap-1">
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setRosterTimePreset('09:30', '12:30')">
-                                <i class="fa-regular fa-sun me-1"></i> Morning (09:30 - 12:30)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setRosterTimePreset('14:00', '17:00')">
-                                <i class="fa-regular fa-moon me-1"></i> Afternoon (02:00 - 05:00)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 fs-7" onclick="setRosterOpenNowPreset()">
-                                <i class="fa-solid fa-bolt me-1"></i> Open Right Now (Demo)
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-2">
+                            <span class="fs-7 text-muted">Enter custom times (e.g. 14:00 to 15:00 for 2 to 3 PM).</span>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setRosterOpenNowPreset()">
+                                <i class="fa-solid fa-bolt me-1"></i> Fill Current Time (Testing)
                             </button>
                         </div>
                     </div>
@@ -686,12 +690,18 @@
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-navy text-white py-3">
                 <h6 class="modal-title fw-bold">
-                    <i class="fa-solid fa-clock text-warning me-2"></i> Edit Exam Date & Time Window (Admin)
+                    <i class="fa-solid fa-clock text-warning me-2"></i> Edit Room & Exam Timings (Admin)
                 </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form onsubmit="submitRosterEditSchedule(event)">
                 <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Hall <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="rosterEditRoomNumber" value="{{ session_data.room_number }}" placeholder="e.g. CS101, Room 302" required>
+                        <div class="form-text fs-7">Type any custom room code like <code>CS101</code>.</div>
+                    </div>
+
                     <div class="row g-2 mb-3">
                         <div class="col-4">
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">Course Code</label>
@@ -711,27 +721,19 @@
                     <div class="row g-2 mb-2">
                         <div class="col-6">
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time <span class="text-danger">*</span></label>
-                            <input type="time" class="form-control" id="rosterEditStartTime" value="{{ session_data.start_time or '09:30' }}" required>
+                            <input type="time" class="form-control" id="rosterEditStartTime" value="{{ session_data.start_time or '' }}" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time <span class="text-danger">*</span></label>
-                            <input type="time" class="form-control" id="rosterEditEndTime" value="{{ session_data.end_time or '12:30' }}" required>
+                            <input type="time" class="form-control" id="rosterEditEndTime" value="{{ session_data.end_time or '' }}" required>
                         </div>
                     </div>
 
-                    <div class="mb-2">
-                        <label class="form-label fs-7 fw-bold text-muted text-uppercase mb-1">Quick Presets:</label>
-                        <div class="d-flex flex-wrap gap-1">
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setRosterEditTimePreset('09:30', '12:30')">
-                                <i class="fa-regular fa-sun me-1"></i> Morning (09:30 - 12:30)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setRosterEditTimePreset('14:00', '17:00')">
-                                <i class="fa-regular fa-moon me-1"></i> Afternoon (02:00 - 05:00)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 fs-7" onclick="setRosterEditOpenNowPreset()">
-                                <i class="fa-solid fa-bolt me-1"></i> ⚡ Open Right Now (Live Demo)
-                            </button>
-                        </div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-2">
+                        <span class="fs-7 text-muted">Enter custom times (e.g. 14:00 to 15:00 for 2 to 3 PM).</span>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setRosterEditOpenNowPreset()">
+                            <i class="fa-solid fa-bolt me-1"></i> Fill Current Time (Testing)
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer bg-light py-2">
@@ -1343,12 +1345,18 @@
 
     function submitRosterScheduleNext(e) {
         e.preventDefault();
+        const roomNumber = document.getElementById('rosterRoomNumber') ? document.getElementById('rosterRoomNumber').value.trim() : '{{ session_data.room_number }}';
         const code = document.getElementById('rosterCourseCode').value.trim();
         const name = document.getElementById('rosterCourseName').value.trim();
         const date = document.getElementById('rosterExamDate') ? document.getElementById('rosterExamDate').value : '{{ session_data.exam_date }}';
-        const start = document.getElementById('rosterStartTime') ? document.getElementById('rosterStartTime').value : '09:30';
-        const end = document.getElementById('rosterEndTime') ? document.getElementById('rosterEndTime').value : '12:30';
+        const start = document.getElementById('rosterStartTime') ? document.getElementById('rosterStartTime').value : '';
+        const end = document.getElementById('rosterEndTime') ? document.getElementById('rosterEndTime').value : '';
         const copy = document.getElementById('rosterCopyStudents').checked;
+
+        if (!start || !end) {
+            Swal.fire('Timings Required', 'Please enter examination start and end times (e.g. 14:00 to 15:00 for 2 to 3 PM).', 'warning');
+            return;
+        }
 
         const btn = document.getElementById('btnSubmitRosterSchedule');
         btn.disabled = true;
@@ -1358,6 +1366,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 classroom_id: {{ session_data.classroom_id or 1 }},
+                room_number: roomNumber,
                 source_session_id: SESSION_ID,
                 course_code: code,
                 course_name: name,
@@ -1418,11 +1427,17 @@
 
     function submitRosterEditSchedule(e) {
         e.preventDefault();
+        const roomNumber = document.getElementById('rosterEditRoomNumber') ? document.getElementById('rosterEditRoomNumber').value.trim() : '{{ session_data.room_number }}';
         const code = document.getElementById('rosterEditCourseCode').value.trim();
         const name = document.getElementById('rosterEditCourseName').value.trim();
         const date = document.getElementById('rosterEditExamDate').value;
         const start = document.getElementById('rosterEditStartTime').value;
         const end = document.getElementById('rosterEditEndTime').value;
+
+        if (!start || !end) {
+            Swal.fire('Timings Required', 'Please enter examination start and end times (e.g. 14:00 to 15:00 for 2 to 3 PM).', 'warning');
+            return;
+        }
 
         const btn = document.getElementById('btnSubmitRosterEditSchedule');
         btn.disabled = true;
@@ -1431,6 +1446,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                room_number: roomNumber,
                 course_code: code,
                 course_name: name,
                 exam_date: date,

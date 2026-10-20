@@ -94,6 +94,37 @@ def check_session_access(session_id):
     return check_department_access(row['department_id'])
 
 
+def normalize_time_str(t_str, default="09:30"):
+    """
+    Normalizes time strings from form inputs, handling 24h ('14:00'),
+    12h ('2:00 PM', '2 PM'), or plain hours ('14', '2').
+    Returns 'HH:MM' 24-hour format string.
+    """
+    if not t_str:
+        return default
+    t_str = str(t_str).strip()
+    match_12 = re.match(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$', t_str, re.IGNORECASE)
+    if match_12:
+        h = int(match_12.group(1))
+        m = int(match_12.group(2))
+        ampm = (match_12.group(3) or '').upper()
+        if ampm == 'PM' and h < 12:
+            h += 12
+        elif ampm == 'AM' and h == 12:
+            h = 0
+        return f"{h:02d}:{m:02d}"
+    match_h = re.match(r'^(\d{1,2})\s*(AM|PM)?$', t_str, re.IGNORECASE)
+    if match_h:
+        h = int(match_h.group(1))
+        ampm = (match_h.group(2) or '').upper()
+        if ampm == 'PM' and h < 12:
+            h += 12
+        elif ampm == 'AM' and h == 12:
+            h = 0
+        return f"{h:02d}:00"
+    return default
+
+
 def get_session_window_status(session_row):
     """
     Evaluates whether the examination attendance window is:
@@ -553,27 +584,51 @@ def create_or_clone_session():
     """
     data = request.get_json() or request.form
     classroom_id = data.get('classroom_id')
+    custom_room_number = (data.get('room_number') or '').strip()
     source_session_id = data.get('source_session_id')
     course_code = (data.get('course_code') or '').strip().upper()
     course_name = (data.get('course_name') or '').strip()
-    exam_date = data.get('exam_date') or datetime.now().strftime("%Y-%m-%d")
-    start_time = (data.get('start_time') or '09:30').strip()
-    end_time = (data.get('end_time') or '12:30').strip()
-    exam_session = data.get('exam_session') or f"Session ({start_time} - {end_time})"
+    exam_date = (data.get('exam_date') or '').strip() or datetime.now().strftime("%Y-%m-%d")
+    start_time = normalize_time_str(data.get('start_time'), default='09:30')
+    end_time = normalize_time_str(data.get('end_time'), default='12:30')
+    exam_session = (data.get('exam_session') or '').strip() or f"Session ({start_time} - {end_time})"
     qp_code = (data.get('qp_code') or f"QP-2026-{course_code}-A").strip().upper()
     copy_students = str(data.get('copy_students', 'true')).lower() in ('true', '1', 'yes', 'on')
 
-    if not classroom_id or not course_code or not course_name:
-        return jsonify({'success': False, 'message': 'Classroom, Subject Code, and Subject Name are required.'}), 400
+    if not course_code or not course_name:
+        return jsonify({'success': False, 'message': 'Subject Code and Subject Name are required.'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
 
     try:
-        cursor.execute('SELECT department_id, room_number FROM classrooms WHERE id = ?', (classroom_id,))
-        room = cursor.fetchone()
-        if not room:
-            return jsonify({'success': False, 'message': 'Classroom not found.'}), 404
+        room_number = custom_room_number
+        if classroom_id:
+            cursor.execute('SELECT department_id, room_number FROM classrooms WHERE id = ?', (classroom_id,))
+            room = cursor.fetchone()
+            if not room:
+                return jsonify({'success': False, 'message': 'Classroom not found.'}), 404
+            dept_id = room['department_id']
+            if custom_room_number and room['room_number'] != custom_room_number:
+                # Update existing classroom room_number to the typed handwritten one
+                cursor.execute('UPDATE classrooms SET room_number = ? WHERE id = ?', (custom_room_number, classroom_id))
+                room_number = custom_room_number
+            else:
+                room_number = custom_room_number or room['room_number']
+        elif custom_room_number:
+            dept_id = data.get('department_id') or 1
+            cursor.execute('SELECT id, room_number FROM classrooms WHERE department_id = ? AND LOWER(room_number) = LOWER(?)', (dept_id, custom_room_number))
+            existing_room = cursor.fetchone()
+            if existing_room:
+                classroom_id = existing_room['id']
+                room_number = existing_room['room_number']
+            else:
+                cursor.execute('INSERT INTO classrooms (department_id, room_number, building, capacity) VALUES (?, ?, ?, 40)',
+                               (dept_id, custom_room_number, 'Academic Block'))
+                classroom_id = cursor.lastrowid
+                room_number = custom_room_number
+        else:
+            return jsonify({'success': False, 'message': 'Classroom or Room Number is required.'}), 400
 
         invigilator_name = session.get('full_name', 'Room Invigilator')
         invigilator_id = session.get('username', 'INV')
@@ -589,8 +644,8 @@ def create_or_clone_session():
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, 'IN_PROGRESS'
             )
-        ''', (room['department_id'], classroom_id, course_code, course_name, exam_date,
-              start_time, end_time, exam_session, room['room_number'], qp_code, invigilator_name, invigilator_id, user_id))
+        ''', (dept_id, classroom_id, course_code, course_name, exam_date,
+              start_time, end_time, exam_session, room_number, qp_code, invigilator_name, invigilator_id, user_id))
         new_session_id = cursor.lastrowid
 
         # Copy students from source session if requested
@@ -611,9 +666,9 @@ def create_or_clone_session():
 
         return jsonify({
             'success': True,
-            'message': f"New examination session for {course_code} ({course_name}) scheduled for {exam_date} ({start_time} - {end_time}).",
+            'message': f"New examination session for {course_code} ({course_name}) in {room_number} scheduled for {exam_date} ({start_time} - {end_time}).",
             'session_id': new_session_id,
-            'redirect_url': f"/departments/{room['department_id']}/classrooms"
+            'redirect_url': f"/departments/{dept_id}/classrooms"
         })
 
     except Exception as e:
@@ -627,15 +682,16 @@ def create_or_clone_session():
 @admin_required
 def update_session_schedule(session_id):
     """
-    Administrator-only: Update subject details, exam date, start time, and end time.
+    Administrator-only: Update subject details, room number, exam date, start time, and end time.
     """
     data = request.get_json() or request.form
     course_code = (data.get('course_code') or '').strip().upper()
     course_name = (data.get('course_name') or '').strip()
+    custom_room_number = (data.get('room_number') or '').strip()
     exam_date = (data.get('exam_date') or '').strip()
-    start_time = (data.get('start_time') or '09:30').strip()
-    end_time = (data.get('end_time') or '12:30').strip()
-    exam_session = data.get('exam_session') or f"Session ({start_time} - {end_time})"
+    start_time = normalize_time_str(data.get('start_time'), default='09:30')
+    end_time = normalize_time_str(data.get('end_time'), default='12:30')
+    exam_session = (data.get('exam_session') or '').strip() or f"Session ({start_time} - {end_time})"
 
     if not course_code or not course_name or not exam_date:
         return jsonify({'success': False, 'message': 'Course code, course name, and exam date are required.'}), 400
@@ -645,11 +701,20 @@ def update_session_schedule(session_id):
     try:
         cursor.execute('''
             UPDATE exam_sessions
-            SET course_code = ?, course_name = ?, exam_date = ?, start_time = ?, end_time = ?, exam_session = ?
+            SET course_code = ?, course_name = ?, exam_date = ?, start_time = ?, end_time = ?, exam_session = ?,
+                room_number = CASE WHEN ? != '' THEN ? ELSE room_number END
             WHERE id = ?
-        ''', (course_code, course_name, exam_date, start_time, end_time, exam_session, session_id))
+        ''', (course_code, course_name, exam_date, start_time, end_time, exam_session, custom_room_number, custom_room_number, session_id))
+
+        if custom_room_number:
+            cursor.execute('SELECT classroom_id FROM exam_sessions WHERE id = ?', (session_id,))
+            sess_row = cursor.fetchone()
+            if sess_row and sess_row['classroom_id']:
+                cursor.execute('UPDATE classrooms SET room_number = ? WHERE id = ?', (custom_room_number, sess_row['classroom_id']))
+
         conn.commit()
-        return jsonify({'success': True, 'message': f"Schedule for {course_code} updated to {exam_date} ({start_time} - {end_time})."})
+        room_info = f" in {custom_room_number}" if custom_room_number else ""
+        return jsonify({'success': True, 'message': f"Schedule for {course_code}{room_info} updated to {exam_date} ({start_time} - {end_time})."})
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'message': f"Error updating schedule: {str(e)}"}), 500
@@ -1715,18 +1780,38 @@ def admin_session_create():
     course_code = (request.form.get('course_code') or '').strip().upper()
     course_name = (request.form.get('course_name') or '').strip()
     department_id = request.form.get('department_id', type=int)
+    room_number_input = (request.form.get('room_number') or '').strip()
     classroom_id = request.form.get('classroom_id', type=int)
     exam_date = request.form.get('exam_date')
-    exam_session = request.form.get('exam_session')
-    qp_code = (request.form.get('qp_code') or '').strip().upper()
+    start_time = normalize_time_str(request.form.get('start_time'), default='09:30')
+    end_time = normalize_time_str(request.form.get('end_time'), default='12:30')
+    exam_session = (request.form.get('exam_session') or '').strip() or f"Session ({start_time} - {end_time})"
+    qp_code = (request.form.get('qp_code') or f"QP-2026-{course_code}-A").strip().upper()
     teacher_user_id = request.form.get('teacher_user_id', type=int)
 
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute('SELECT room_number FROM classrooms WHERE id = ?', (classroom_id,))
-    room_row = cursor.fetchone()
-    room_number = room_row['room_number'] if room_row else f"Room {classroom_id}"
+    if room_number_input:
+        cursor.execute('SELECT id, room_number FROM classrooms WHERE department_id = ? AND LOWER(room_number) = LOWER(?)', (department_id, room_number_input))
+        found_r = cursor.fetchone()
+        if found_r:
+            classroom_id = found_r['id']
+            room_number = found_r['room_number']
+        else:
+            cursor.execute('INSERT INTO classrooms (department_id, room_number, building, capacity) VALUES (?, ?, ?, 40)',
+                           (department_id, room_number_input, 'Academic Block'))
+            classroom_id = cursor.lastrowid
+            room_number = room_number_input
+    elif classroom_id:
+        cursor.execute('SELECT room_number FROM classrooms WHERE id = ?', (classroom_id,))
+        room_row = cursor.fetchone()
+        room_number = room_row['room_number'] if room_row else f"Room {classroom_id}"
+    else:
+        room_number = "CS101"
+        cursor.execute('INSERT INTO classrooms (department_id, room_number, building, capacity) VALUES (?, ?, ?, 40)',
+                       (department_id or 1, room_number, 'Academic Block'))
+        classroom_id = cursor.lastrowid
 
     cursor.execute('SELECT full_name, username FROM users WHERE id = ?', (teacher_user_id,))
     t_row = cursor.fetchone()
@@ -1735,16 +1820,17 @@ def admin_session_create():
 
     cursor.execute('''
         INSERT INTO exam_sessions (
-            department_id, classroom_id, course_code, course_name, exam_date,
-            exam_session, room_number, qp_code, invigilator_name, invigilator_id,
+            exam_id, department_id, classroom_id, course_code, course_name, exam_date,
+            start_time, end_time, exam_session, room_number, qp_code, invigilator_name, invigilator_id,
             invigilator_user_id, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'IN_PROGRESS')
-    ''', (department_id, classroom_id, course_code, course_name, exam_date, exam_session, room_number, qp_code, invigilator_name, invigilator_id, teacher_user_id))
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'IN_PROGRESS')
+    ''', (department_id, classroom_id, course_code, course_name, exam_date,
+          start_time, end_time, exam_session, room_number, qp_code, invigilator_name, invigilator_id, teacher_user_id))
 
     conn.commit()
     conn.close()
 
-    flash(f"Examination session for {course_code} ({room_number}) scheduled successfully.", 'success')
+    flash(f"Examination session for {course_code} ({room_number}) scheduled for {exam_date} ({start_time} - {end_time}).", 'success')
     return redirect(url_for('admin_exams_list'))
 
 

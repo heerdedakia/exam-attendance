@@ -143,8 +143,8 @@
                                         {% endif %}
 
                                         {% if session.get('role') == 'ADMIN' %}
-                                        <button class="btn btn-outline-secondary btn-sm py-1 px-2" title="Edit Date & Time Schedule"
-                                                onclick="openEditScheduleModal({{ s.id }}, '{{ s.course_code }}', '{{ s.course_name }}', '{{ s.exam_date }}', '{{ s.start_time or '09:30' }}', '{{ s.end_time or '12:30' }}')">
+                                        <button class="btn btn-outline-secondary btn-sm py-1 px-2" title="Edit Room & Schedule"
+                                                onclick="openEditScheduleModal({{ s.id }}, '{{ s.course_code }}', '{{ s.course_name }}', '{{ s.exam_date }}', '{{ s.start_time or '' }}', '{{ s.end_time or '' }}', '{{ s.room_number }}')">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
                                         {% endif %}
@@ -208,31 +208,15 @@
                 <input type="hidden" id="modalClassroomId" name="classroom_id" value="">
                 
                 <div class="modal-body p-3 p-md-4">
-                    <div class="p-3 bg-light rounded border mb-3">
-                        <div class="fs-7 text-muted">Target Examination Room:</div>
-                        <h6 class="fw-bold text-dark mb-0" id="modalRoomTitle">Room</h6>
-                    </div>
-
-                    <!-- Quick Pick Subject Preset Buttons -->
-                    <div class="mb-3">
-                        <label class="form-label fs-7 fw-bold text-muted text-uppercase mb-1">Quick Select Common Subjects:</label>
-                        <div class="d-flex flex-wrap gap-1">
-                            <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 fs-7" 
-                                    onclick="setSubjectPreset('MAT301', 'Advanced Engineering Mathematics')">
-                                Mathematics (MAT301)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 fs-7" 
-                                    onclick="setSubjectPreset('CS302', 'Data Structures & Algorithms (DSA)')">
-                                DSA (CS302)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 fs-7" 
-                                    onclick="setSubjectPreset('EC303', 'Analog & Digital Logic Design (ADLD)')">
-                                ADLD (EC303)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 fs-7" 
-                                    onclick="setSubjectPreset('QC401', 'Quantum Computing & Engineering (QCE)')">
-                                QCE (QC401)
-                            </button>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Hall <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modalRoomNumber" placeholder="Type Room No. (e.g. CS101, Room 302)" required>
+                            <div class="form-text fs-7">Type any room code like <code>CS101</code>.</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="modalExamDate" name="exam_date" required>
                         </div>
                     </div>
 
@@ -247,41 +231,29 @@
                         </div>
                     </div>
 
-                    <!-- Exam Date & Time Window -->
+                    <!-- Exam Date & Time Window (Blank for custom college hours) -->
                     <div class="p-3 bg-light rounded-3 border mb-3">
                         <div class="fs-7 fw-bold text-muted text-uppercase mb-2">
-                            <i class="fa-regular fa-clock text-primary me-1"></i> Exam Date & Time Window (Attendance Access)
+                            <i class="fa-regular fa-clock text-primary me-1"></i> Exam Timings (Custom College Hours)
                         </div>
                         
-                        <div class="mb-2">
-                            <label class="form-label fs-7 fw-semibold text-dark mb-1">Exam Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="modalExamDate" name="exam_date" required>
-                        </div>
-
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label fs-7 fw-semibold text-dark mb-1">Start Time (Opens) <span class="text-danger">*</span></label>
-                                <input type="time" class="form-control" id="modalStartTime" name="start_time" value="09:30" required>
+                                <input type="time" class="form-control" id="modalStartTime" name="start_time" required>
                             </div>
                             <div class="col-6">
                                 <label class="form-label fs-7 fw-semibold text-dark mb-1">End Time (Closes) <span class="text-danger">*</span></label>
-                                <input type="time" class="form-control" id="modalEndTime" name="end_time" value="12:30" required>
+                                <input type="time" class="form-control" id="modalEndTime" name="end_time" required>
                             </div>
                         </div>
 
-                        <!-- Quick Time Presets -->
-                        <div class="d-flex flex-wrap gap-1 mt-2">
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setTimePreset('09:30', '12:30')">
-                                🌅 Morning (09:30 AM - 12:30 PM)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setTimePreset('14:00', '17:00')">
-                                🌇 Afternoon (02:00 PM - 05:00 PM)
-                            </button>
-                            <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 fs-7" onclick="setOpenNowPreset()">
-                                ⚡ Open Right Now (Testing / Live Demo)
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-2">
+                            <span class="fs-7 text-muted">Enter any custom timing (e.g. 2:00 PM to 3:00 PM).</span>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setOpenNowPreset()">
+                                <i class="fa-solid fa-bolt me-1"></i> Fill Current Time (Testing)
                             </button>
                         </div>
-                        <div class="form-text fs-7 mt-1">Attendance scanning is strictly permitted only during these scheduled hours.</div>
                     </div>
 
                     <!-- Auto-copy Student Roster Feature -->
@@ -322,6 +294,12 @@
             <form id="editScheduleForm" onsubmit="submitEditSchedule(event)">
                 <input type="hidden" id="editSessionId" value="">
                 <div class="modal-body p-3 p-md-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Hall <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editRoomNumberVal" placeholder="e.g. CS101, Room 302" required>
+                        <div class="form-text fs-7">Type any room code like <code>CS101</code> to rename or reassign room.</div>
+                    </div>
+
                     <div class="row g-2 mb-3">
                         <div class="col-4">
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">Subject Code <span class="text-danger">*</span></label>
@@ -349,16 +327,10 @@
                         </div>
                     </div>
 
-                    <!-- Presets -->
-                    <div class="d-flex flex-wrap gap-1 mt-2">
-                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setEditTimePreset('09:30', '12:30')">
-                            🌅 09:30 AM - 12:30 PM
-                        </button>
-                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setEditTimePreset('14:00', '17:00')">
-                            🌇 02:00 PM - 05:00 PM
-                        </button>
-                        <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 fs-7" onclick="setEditOpenNowPreset()">
-                            ⚡ Open Right Now (Live Testing)
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-2">
+                        <span class="fs-7 text-muted">Enter custom times (e.g. 14:00 to 15:00 for 2 to 3 PM).</span>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 fs-7" onclick="setEditOpenNowPreset()">
+                            <i class="fa-solid fa-bolt me-1"></i> Fill Current Time (Testing)
                         </button>
                     </div>
                 </div>
@@ -489,23 +461,24 @@
     function openScheduleNextModal(classroomId, roomNumber) {
         if (!scheduleModal) return;
         document.getElementById('modalClassroomId').value = classroomId;
-        document.getElementById('modalRoomTitle').textContent = roomNumber;
+        document.getElementById('modalRoomNumber').value = roomNumber || '';
         document.getElementById('modalCourseCode').value = '';
         document.getElementById('modalCourseName').value = '';
-        document.getElementById('modalStartTime').value = '09:30';
-        document.getElementById('modalEndTime').value = '12:30';
+        document.getElementById('modalStartTime').value = '';
+        document.getElementById('modalEndTime').value = '';
         document.getElementById('modalExamDate').value = new Date().toISOString().split('T')[0];
         scheduleModal.show();
     }
 
-    function openEditScheduleModal(sessionId, code, name, date, start, end) {
+    function openEditScheduleModal(sessionId, code, name, date, start, end, roomNumber) {
         if (!editScheduleModalInstance) return;
         document.getElementById('editSessionId').value = sessionId;
+        document.getElementById('editRoomNumberVal').value = roomNumber || '';
         document.getElementById('editCourseCode').value = code;
         document.getElementById('editCourseName').value = name;
         document.getElementById('editExamDate').value = date;
-        document.getElementById('editStartTime').value = start || '09:30';
-        document.getElementById('editEndTime').value = end || '12:30';
+        document.getElementById('editStartTime').value = start || '';
+        document.getElementById('editEndTime').value = end || '';
         editScheduleModalInstance.show();
     }
 
@@ -566,12 +539,18 @@
     function submitScheduleNext(e) {
         e.preventDefault();
         const classroomId = document.getElementById('modalClassroomId').value;
+        const roomNumber = document.getElementById('modalRoomNumber').value.trim();
         const code = document.getElementById('modalCourseCode').value.trim();
         const name = document.getElementById('modalCourseName').value.trim();
         const date = document.getElementById('modalExamDate').value;
         const start = document.getElementById('modalStartTime').value;
         const end = document.getElementById('modalEndTime').value;
         const copy = document.getElementById('modalCopyStudents').checked;
+
+        if (!start || !end) {
+            Swal.fire('Timings Required', 'Please enter examination start and end times (e.g. 14:00 to 15:00 for 2 to 3 PM).', 'warning');
+            return;
+        }
 
         const btn = document.getElementById('btnSubmitScheduleNext');
         btn.disabled = true;
@@ -581,6 +560,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 classroom_id: classroomId,
+                room_number: roomNumber,
                 course_code: code,
                 course_name: name,
                 exam_date: date,
@@ -617,11 +597,17 @@
     function submitEditSchedule(e) {
         e.preventDefault();
         const sessionId = document.getElementById('editSessionId').value;
+        const roomNumber = document.getElementById('editRoomNumberVal').value.trim();
         const code = document.getElementById('editCourseCode').value.trim();
         const name = document.getElementById('editCourseName').value.trim();
         const date = document.getElementById('editExamDate').value;
         const start = document.getElementById('editStartTime').value;
         const end = document.getElementById('editEndTime').value;
+
+        if (!start || !end) {
+            Swal.fire('Timings Required', 'Please enter examination start and end times (e.g. 14:00 to 15:00 for 2 to 3 PM).', 'warning');
+            return;
+        }
 
         const btn = document.getElementById('btnSubmitEditSchedule');
         btn.disabled = true;
@@ -630,6 +616,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                room_number: roomNumber,
                 course_code: code,
                 course_name: name,
                 exam_date: date,

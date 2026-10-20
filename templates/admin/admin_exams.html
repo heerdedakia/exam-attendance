@@ -122,26 +122,28 @@
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Classroom <span class="text-danger">*</span></label>
-                            <select class="form-select" name="classroom_id" required>
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Hall <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="room_number" placeholder="Type Room No. (e.g. CS101, Room 302)" list="classroomList" required>
+                            <datalist id="classroomList">
                                 {% for r in classrooms %}
-                                <option value="{{ r.id }}">{{ r.room_number }}</option>
+                                <option value="{{ r.room_number }}">
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
                     </div>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" name="exam_date" required value="{{ today_str }}">
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Session Time <span class="text-danger">*</span></label>
-                            <select class="form-select" name="exam_session" required>
-                                <option value="Morning (09:30 AM - 12:30 PM)">Morning (09:30 AM - 12:30 PM)</option>
-                                <option value="Afternoon (02:00 PM - 05:00 PM)">Afternoon (02:00 PM - 05:00 PM)</option>
-                            </select>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time (Opens) <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" name="start_time" required>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time (Closes) <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" name="end_time" required>
                         </div>
                     </div>
 
