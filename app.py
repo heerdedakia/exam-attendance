@@ -850,8 +850,8 @@ def mark_attendance():
     if not qp_barcode:
         return jsonify({'success': False, 'message': 'Answer booklet barcode scan is required.'}), 400
 
-    # Format check for barcode (alphanumeric, dashes, underscores, length 3-64)
-    if len(qp_barcode) < 3 or len(qp_barcode) > 64 or not re.match(r'^[A-Z0-9_\-]+$', qp_barcode):
+    # Format check for barcode (alphanumeric, dashes, underscores, dots, slashes, length 2-64)
+    if len(qp_barcode) < 2 or len(qp_barcode) > 64 or not re.match(r'^[A-Z0-9_\-\.\/\s]+$', qp_barcode):
         return jsonify({
             'success': False,
             'message': f"INVALID BARCODE FORMAT: '{qp_barcode}'. Expected a valid alphanumeric booklet identifier."
@@ -1848,6 +1848,9 @@ def admin_session_create():
         ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'IN_PROGRESS')
     ''', (department_id, classroom_id, course_code, course_name, exam_date,
           start_time, end_time, exam_session, room_number, qp_code, invigilator_name, invigilator_id, teacher_user_id))
+
+    cursor.execute('INSERT OR IGNORE INTO booklet_registry (barcode_value, exam_id, batch_number, status) VALUES (?, 1, ?, \'AVAILABLE\')',
+                   (qp_code, f"BATCH-{course_code}"))
 
     conn.commit()
     conn.close()

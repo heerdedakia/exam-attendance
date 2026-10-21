@@ -843,14 +843,49 @@
     let cameraModalInstance = null;
     let redoModalInstance = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        cameraModalInstance = new bootstrap.Modal(document.getElementById('cameraScannerModal'));
-        redoModalInstance = new bootstrap.Modal(document.getElementById('redoCorrectionModal'));
+    function getCameraModal() {
+        if (!cameraModalInstance) {
+            const modalEl = document.getElementById('cameraScannerModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                cameraModalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            }
+        }
+        return cameraModalInstance;
+    }
 
-        // Select first student by default if available
-        const firstRow = document.querySelector('.roster-row');
-        if (firstRow) {
-            selectRosterStudent(firstRow.dataset.usn);
+    function getRedoModal() {
+        if (!redoModalInstance) {
+            const modalEl = document.getElementById('redoCorrectionModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                redoModalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            }
+        }
+        return redoModalInstance;
+    }
+
+    function initRosterPage() {
+        getCameraModal();
+        getRedoModal();
+
+        // Auto select first pending student, or first student on roster
+        const pendingRow = document.querySelector('.roster-row[data-status="PENDING"]') || document.querySelector('.roster-row');
+        if (pendingRow) {
+            selectRosterStudent(pendingRow.dataset.usn);
+        }
+    }
+
+    // Run initialization immediately if DOM is already ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRosterPage);
+    } else {
+        initRosterPage();
+    }
+
+    // Delegated click & tap listener for roster cards
+    document.addEventListener('click', (e) => {
+        const cardRow = e.target.closest('.roster-row');
+        if (cardRow && !e.target.closest('.action-cell') && !e.target.closest('button') && !e.target.closest('a')) {
+            selectRosterStudent(cardRow.dataset.usn);
         }
     });
 
@@ -880,13 +915,18 @@
         };
 
         // Update banner
-        document.getElementById('selStudentName').textContent = selectedStudent.name;
-        document.getElementById('selStudentUsn').textContent = selectedStudent.usn;
-        document.getElementById('selStudentDesk').textContent = `Desk: ${selectedStudent.desk}`;
+        const nameEl = document.getElementById('selStudentName');
+        if (nameEl) nameEl.textContent = selectedStudent.name;
+        const usnEl = document.getElementById('selStudentUsn');
+        if (usnEl) usnEl.textContent = selectedStudent.usn;
+        const deskEl = document.getElementById('selStudentDesk');
+        if (deskEl) deskEl.textContent = `Desk: ${selectedStudent.desk}`;
         
         const badge = document.getElementById('selStudentStatus');
-        badge.className = `badge fs-7 ms-1 badge-${selectedStudent.status.toLowerCase()}`;
-        badge.textContent = selectedStudent.status;
+        if (badge) {
+            badge.className = `badge fs-7 ms-1 badge-${selectedStudent.status.toLowerCase()}`;
+            badge.textContent = selectedStudent.status;
+        }
 
         // Enable buttons if not locked
         if (!IS_SESSION_LOCKED) {
@@ -900,25 +940,37 @@
     }
 
     function openScannerForSelected() {
+        // 1. Auto select first pending or visible student if none selected
         if (!selectedStudent) {
-            // Auto select the first visible student in the roster
-            const visibleRow = document.querySelector('.roster-row:not(.d-none)');
-            if (visibleRow) {
-                selectRosterStudent(visibleRow.dataset.usn);
+            const targetRow = document.querySelector('.roster-row[data-status="PENDING"]:not(.d-none)') ||
+                              document.querySelector('.roster-row:not(.d-none)') ||
+                              document.querySelector('.roster-row[data-status="PENDING"]') ||
+                              document.querySelector('.roster-row');
+            if (targetRow) {
+                selectRosterStudent(targetRow.dataset.usn);
             }
         }
 
         if (!selectedStudent) {
             Swal.fire({
                 icon: 'info',
-                title: 'Select Candidate First',
-                text: 'Please select a student from the examination roster before launching the barcode scanner.',
+                title: 'No Students on Roster',
+                text: 'Please add students to this exam room first using "+ Add Student" or "Paste Students".',
                 confirmButtonText: 'OK'
             });
             return;
         }
 
-        if (IS_SESSION_LOCKED) return;
+        if (IS_SESSION_LOCKED) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Exam Session Locked',
+                text: 'This exam attendance has already been finalized and submitted.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
         if (!IS_SESSION_TIME_ACTIVE) {
             showTimeLockedAlert();
             return;
@@ -933,7 +985,17 @@
         const manualInp = document.getElementById('manualBarcodeInput');
         if (manualInp) manualInp.value = '';
 
-        cameraModalInstance.show();
+        const modal = getCameraModal();
+        if (modal) {
+            modal.show();
+        } else {
+            const m = document.getElementById('cameraScannerModal');
+            if (m) {
+                m.classList.add('show');
+                m.style.display = 'block';
+                document.body.classList.add('modal-open');
+            }
+        }
 
         // Start HTML5 Camera Scanner
         setTimeout(() => {
@@ -1114,7 +1176,6 @@
             }
         }, 400);
     }
-    }
 
     function onBarcodeScanFailure(error) {
         // Continuous scan loop frame ignore
@@ -1206,7 +1267,17 @@
             btn.classList.remove('btn-warning');
             btn.classList.add('btn-outline-secondary');
         }
-        cameraModalInstance.hide();
+        const modal = getCameraModal();
+        if (modal) {
+            modal.hide();
+        }
+        const m = document.getElementById('cameraScannerModal');
+        if (m) {
+            m.classList.remove('show');
+            m.style.display = 'none';
+            document.body.classList.remove('modal-open');
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        }
     }
 
     function markSelectedAbsent() {
@@ -1256,9 +1327,6 @@
             }
         });
     }
-            }
-        });
-    }
 
     function triggerRedoFor(usn) {
         selectRosterStudent(usn);
@@ -1278,7 +1346,8 @@
         document.getElementById('redoReason').value = '';
         handleRedoStatusChange();
 
-        redoModalInstance.show();
+        const modal = getRedoModal();
+        if (modal) modal.show();
     }
 
     function handleRedoStatusChange() {
@@ -1318,7 +1387,8 @@
         .then(res => res.json().then(data => ({ status: res.status, body: data })))
         .then(({ status, body }) => {
             if (status === 200 && body.success) {
-                redoModalInstance.hide();
+                const modal = getRedoModal();
+                if (modal) modal.hide();
                 Swal.fire('Correction Saved', body.message, 'success');
                 updateRosterRow(selectedStudent.usn, newStatus, body.student.qp_barcode || '', body.student.marked_at);
                 updateStats();
