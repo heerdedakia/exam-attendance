@@ -147,6 +147,10 @@
                                                 onclick="openEditScheduleModal({{ s.id }}, '{{ s.course_code }}', '{{ s.course_name }}', '{{ s.exam_date }}', '{{ s.start_time or '' }}', '{{ s.end_time or '' }}', '{{ s.room_number }}')">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
+                                        <button class="btn btn-outline-danger btn-sm py-1 px-2" title="Remove / Clear Scheduled Exam"
+                                                onclick="confirmDeleteExam({{ s.id }}, '{{ s.course_code }}', '{{ s.room_number }}')">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -645,6 +649,44 @@
         })
         .finally(() => {
             btn.disabled = false;
+        });
+    }
+
+    function confirmDeleteExam(sessionId, courseCode, roomNumber) {
+        Swal.fire({
+            title: 'Remove Scheduled Exam?',
+            text: `Are you sure you want to remove the scheduled examination for ${courseCode} (${roomNumber})? This will permanently clear it from the schedule.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Remove Exam'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/admin/exams/${sessionId}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Exam Removed',
+                            text: data.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.message || 'Could not remove exam.', 'error');
+                    }
+                })
+                .catch(() => {
+                    Swal.fire('Network Error', 'Failed to communicate with server.', 'error');
+                });
+            }
         });
     }
 </script>

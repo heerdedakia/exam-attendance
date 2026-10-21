@@ -20,6 +20,14 @@
                         Manage teachers, academic departments, classroom sessions, student enrollments, booklet barcode registry, and audit trail.
                     </p>
                 </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="/exams" class="btn btn-primary btn-sm px-3 fw-semibold">
+                        <i class="fa-solid fa-calendar-days me-1"></i> Master Exam Schedule
+                    </a>
+                    <a href="/admin/exams" class="btn btn-outline-secondary btn-sm px-3 fw-semibold">
+                        <i class="fa-solid fa-sliders me-1"></i> Manage Sessions
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -45,10 +53,13 @@
             </div>
         </div>
         <div class="col-6 col-md-4 col-lg-2">
-            <div class="card border-0 shadow-sm bg-white p-3 stat-card text-center">
-                <div class="text-muted fs-7 fw-bold text-uppercase">Exam Sessions</div>
-                <h3 class="fw-bold mb-0 text-info">{{ stats.session_count }}</h3>
-            </div>
+            <a href="/exams" class="text-decoration-none">
+                <div class="card border-0 shadow-sm bg-white p-3 stat-card text-center transition-all h-100 border-top border-info border-3">
+                    <div class="text-muted fs-7 fw-bold text-uppercase">Exam Sessions</div>
+                    <h3 class="fw-bold mb-0 text-info">{{ stats.session_count }}</h3>
+                    <small class="text-primary fs-7"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> View Schedule</small>
+                </div>
+            </a>
         </div>
         <div class="col-6 col-md-4 col-lg-2">
             <div class="card border-0 shadow-sm bg-white p-3 stat-card text-center">

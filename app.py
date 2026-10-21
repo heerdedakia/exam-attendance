@@ -7,6 +7,7 @@ import sys
 import io
 import csv
 import re
+import json
 import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
@@ -39,15 +40,121 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from database import get_db, init_db, seed_demo_data, log_audit, DB_PATH
 from excel_generator import generate_coe_attendance_excel
 
+EXAMS_BACKUP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scheduled_exams_backup.json')
+
+def save_backup_sessions(cursor=None):
+    """Saves all custom and active scheduled exam sessions to a persistent JSON store."""
+    try:
+        should_close = False
+        conn = None
+        if cursor is None:
+            conn = get_db()
+            cursor = conn.cursor()
+            should_close = True
+
+        cursor.execute('''
+            SELECT s.*, 
+                   (SELECT json_group_array(json_object('usn', st.usn, 'name', st.student_name, 'desk', st.desk_number, 'status', st.attendance_status, 'barcode', st.qp_barcode))
+                    FROM students st WHERE st.session_id = s.id) as students_json
+            FROM exam_sessions s
+        ''')
+        rows = [dict(r) for r in cursor.fetchall()]
+        with open(EXAMS_BACKUP_FILE, 'w', encoding='utf-8') as f:
+            json.dump(rows, f, indent=2)
+        if should_close and conn:
+            conn.close()
+    except Exception as e:
+        print(f"[BACKUP NOTICE] Failed to save sessions backup: {e}")
+
+def restore_backup_sessions():
+    """Restores any missing custom scheduled exam sessions from the JSON store upon startup."""
+    if not os.path.exists(EXAMS_BACKUP_FILE):
+        return
+    try:
+        with open(EXAMS_BACKUP_FILE, 'r', encoding='utf-8') as f:
+            backup_sessions = json.load(f)
+        if not backup_sessions:
+            return
+
+        conn = get_db()
+        cursor = conn.cursor()
+        for s in backup_sessions:
+            cursor.execute('SELECT id FROM exam_sessions WHERE course_code = ? AND room_number = ? AND exam_date = ?',
+                           (s.get('course_code'), s.get('room_number'), s.get('exam_date')))
+            existing = cursor.fetchone()
+            if not existing:
+                dept_id = s.get('department_id') or 1
+                room_no = s.get('room_number') or 'CS101'
+                cursor.execute('SELECT id FROM classrooms WHERE department_id = ? AND LOWER(room_number) = LOWER(?)', (dept_id, room_no))
+                c_row = cursor.fetchone()
+                if c_row:
+                    c_id = c_row['id']
+                else:
+                    cursor.execute('INSERT INTO classrooms (department_id, room_number, building, capacity) VALUES (?, ?, ?, 40)',
+                                   (dept_id, room_no, 'Academic Block'))
+                    c_id = cursor.lastrowid
+
+                cursor.execute('''
+                    INSERT INTO exam_sessions (
+                        exam_id, department_id, classroom_id, course_code, course_name, exam_date,
+                        start_time, end_time, exam_session, room_number, qp_code, invigilator_name, invigilator_id,
+                        invigilator_user_id, status
+                    ) VALUES (
+                        1, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?
+                    )
+                ''', (dept_id, c_id, s.get('course_code'), s.get('course_name'), s.get('exam_date'),
+                      s.get('start_time', '09:30'), s.get('end_time', '12:30'), s.get('exam_session'),
+                      room_no, s.get('qp_code', f"QP-{s.get('course_code')}"),
+                      s.get('invigilator_name', 'Invigilator'), s.get('invigilator_id', 'INV'),
+                      s.get('invigilator_user_id', 2), s.get('status', 'IN_PROGRESS')))
+                new_sid = cursor.lastrowid
+
+                st_json = s.get('students_json')
+                if st_json:
+                    try:
+                        st_list = json.loads(st_json)
+                        for st in st_list:
+                            usn = st.get('usn')
+                            name = st.get('name')
+                            desk = st.get('desk') or 'D-01'
+                            status = st.get('status') or 'PENDING'
+                            barcode = st.get('barcode')
+
+                            cursor.execute('INSERT OR IGNORE INTO students_master (usn, student_name, department_id, semester) VALUES (?, ?, ?, 8)',
+                                           (usn, name, dept_id))
+                            cursor.execute('SELECT id FROM students_master WHERE usn = ?', (usn,))
+                            sm_id = cursor.fetchone()['id']
+
+                            cursor.execute('''
+                                INSERT INTO students (session_id, student_master_id, usn, student_name, desk_number, attendance_status, qp_barcode)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ''', (new_sid, sm_id, usn, name, desk, status, barcode))
+                    except Exception as err:
+                        print(f"[RESTORE NOTICE] Failed to restore students: {err}")
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[RESTORE NOTICE] Failed to restore sessions from backup: {e}")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'coe-secure-attendance-portal-secret-key-2026')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+@app.context_processor
+def inject_globals():
+    return {
+        'get_ist_now': get_ist_now
+    }
+
 # Initialize and seed database on startup safely
 try:
     init_db()
     seed_demo_data()
+    restore_backup_sessions()
 except Exception as e:
     print(f"[STARTUP NOTICE] Database initialization: {e}")
 
@@ -492,9 +599,9 @@ def classrooms_view(dept_id):
                 (SELECT COUNT(*) FROM students WHERE session_id = e.id AND attendance_status = 'ABSENT') as absent_count,
                 (SELECT COUNT(*) FROM students WHERE session_id = e.id AND attendance_status = 'PENDING') as pending_count
             FROM exam_sessions e
-            WHERE e.classroom_id = ?
+            WHERE e.classroom_id = ? OR (e.classroom_id IS NULL AND LOWER(e.room_number) = LOWER(?))
             ORDER BY e.id ASC
-        ''', (r['classroom_id'],))
+        ''', (r['classroom_id'], r['room_number']))
         room_sessions = [dict(s) for s in cursor.fetchall()]
 
         for s in room_sessions:
@@ -684,6 +791,7 @@ def create_or_clone_session():
         cursor.execute('INSERT OR IGNORE INTO booklet_registry (barcode_value, exam_id, batch_number, status) VALUES (?, 1, ?, \'AVAILABLE\')',
                        (qp_code, f"BATCH-{course_code}"))
 
+        save_backup_sessions(cursor)
         conn.commit()
 
         return jsonify({
@@ -734,6 +842,8 @@ def update_session_schedule(session_id):
             if sess_row and sess_row['classroom_id']:
                 cursor.execute('UPDATE classrooms SET room_number = ? WHERE id = ?', (custom_room_number, sess_row['classroom_id']))
 
+        conn.commit()
+        save_backup_sessions(cursor)
         conn.commit()
         room_info = f" in {custom_room_number}" if custom_room_number else ""
         return jsonify({'success': True, 'message': f"Schedule for {course_code}{room_info} updated to {exam_date} ({start_time} - {end_time})."})
@@ -1852,11 +1962,113 @@ def admin_session_create():
     cursor.execute('INSERT OR IGNORE INTO booklet_registry (barcode_value, exam_id, batch_number, status) VALUES (?, 1, ?, \'AVAILABLE\')',
                    (qp_code, f"BATCH-{course_code}"))
 
+    save_backup_sessions(cursor)
     conn.commit()
     conn.close()
 
     flash(f"Examination session for {course_code} ({room_number}) scheduled for {exam_date} ({start_time} - {end_time}).", 'success')
-    return redirect(url_for('admin_exams_list'))
+    return redirect(url_for('all_exams_schedule'))
+
+
+@app.route('/exams')
+@login_required
+def all_exams_schedule():
+    """
+    Universal Master Examination Schedule.
+    Accessible to both Invigilators and Admins.
+    Lists all scheduled examinations across the institution.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT 
+            s.*,
+            d.code as dept_code,
+            d.name as dept_name,
+            c.building,
+            (SELECT COUNT(*) FROM students WHERE session_id = s.id) as total_students,
+            (SELECT COUNT(*) FROM students WHERE session_id = s.id AND attendance_status = 'PRESENT') as present_count,
+            (SELECT COUNT(*) FROM students WHERE session_id = s.id AND attendance_status = 'ABSENT') as absent_count,
+            (SELECT COUNT(*) FROM students WHERE session_id = s.id AND attendance_status = 'PENDING') as pending_count
+        FROM exam_sessions s
+        LEFT JOIN departments d ON s.department_id = d.id
+        LEFT JOIN classrooms c ON s.classroom_id = c.id
+        ORDER BY s.exam_date DESC, s.start_time DESC, s.id DESC
+    ''')
+    sessions = [dict(row) for row in cursor.fetchall()]
+
+    for s in sessions:
+        tot = s.get('total_students') or 0
+        pres = s.get('present_count') or 0
+        s['completion_pct'] = round((pres / tot * 100), 1) if tot > 0 else 0.0
+        s['time_window'] = get_session_window_status(s)
+
+    cursor.execute('SELECT id, code, name FROM departments ORDER BY code ASC')
+    departments = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute('SELECT id, room_number FROM classrooms ORDER BY room_number ASC')
+    classrooms = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute("SELECT id, full_name, username FROM users WHERE role = 'TEACHER' AND is_active = 1")
+    teachers = [dict(row) for row in cursor.fetchall()]
+
+    conn.close()
+    today_str = get_ist_now().strftime("%Y-%m-%d")
+
+    return render_template('exams_schedule.html', sessions=sessions, departments=departments, classrooms=classrooms, teachers=teachers, today_str=today_str)
+
+
+@app.route('/admin/exams/<int:session_id>/delete', methods=['POST'])
+@app.route('/exams/<int:session_id>/delete', methods=['POST'])
+@admin_required
+def admin_exam_delete(session_id):
+    """
+    Administrator-only: Remove/clear an examination session from the schedule.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT course_code, course_name, room_number, qp_code FROM exam_sessions WHERE id = ?', (session_id,))
+        sess = cursor.fetchone()
+        if not sess:
+            conn.close()
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'Exam session not found.'}), 404
+            flash('Exam session not found.', 'warning')
+            return redirect(url_for('all_exams_schedule'))
+
+        c_code = sess['course_code']
+        room_num = sess['room_number']
+
+        # Delete linked students in this session
+        cursor.execute('DELETE FROM students WHERE session_id = ?', (session_id,))
+        # Delete verification logs for this session
+        cursor.execute('DELETE FROM evaluation_verifications WHERE session_id = ?', (session_id,))
+        # Delete audit trail for this session
+        cursor.execute('DELETE FROM audit_trail WHERE session_id = ?', (session_id,))
+        # Delete session
+        cursor.execute('DELETE FROM exam_sessions WHERE id = ?', (session_id,))
+
+        conn.commit()
+
+        # Update JSON persistence backup
+        save_backup_sessions(cursor)
+        conn.commit()
+
+        if request.is_json:
+            return jsonify({'success': True, 'message': f"Scheduled examination for {c_code} ({room_num}) has been successfully removed."})
+
+        flash(f"Scheduled examination for {c_code} ({room_num}) has been removed from the schedule.", 'success')
+        return redirect(request.referrer or url_for('all_exams_schedule'))
+    except Exception as e:
+        conn.rollback()
+        if request.is_json:
+            return jsonify({'success': False, 'message': f"Error removing exam: {str(e)}"}), 500
+        flash(f"Error removing exam: {str(e)}", 'danger')
+        return redirect(url_for('all_exams_schedule'))
+    finally:
+        conn.close()
 
 
 @app.route('/admin/students')
@@ -2057,6 +2269,8 @@ def api_session_add_student():
         log_audit(session.get('user_id'), session.get('username'), session.get('role'), 'STUDENT_MANUAL_ENROLL',
                   f"Added candidate {usn} ({student_name}) to session {session_id} desk {desk_str}.", session_id)
 
+        save_backup_sessions(cursor)
+        conn.commit()
         conn.close()
         return jsonify({
             'success': True,
@@ -2139,6 +2353,8 @@ def api_session_bulk_add_students():
     conn.commit()
     log_audit(session.get('user_id'), session.get('username'), session.get('role'), 'STUDENT_BULK_ENROLL',
               f"Bulk enrolled {added_count} candidates to session {session_id}.", session_id)
+    save_backup_sessions(cursor)
+    conn.commit()
     conn.close()
 
     msg = f"Successfully added {added_count} candidates to this examination hall roster."

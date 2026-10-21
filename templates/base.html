@@ -35,7 +35,12 @@
                 {% if session.get('user_id') %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1 ms-lg-3">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path.startswith('/departments') or request.path == '/' %}active fw-semibold text-white{% endif %}" href="/departments">
+                        <a class="nav-link {% if request.path == '/exams' %}active fw-semibold text-white{% endif %}" href="/exams">
+                            <i class="fa-solid fa-calendar-days me-1"></i> Exam Schedule
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if (request.path.startswith('/departments') or request.path == '/') and request.path != '/exams' %}active fw-semibold text-white{% endif %}" href="/departments">
                             <i class="fa-solid fa-building me-1"></i> Departments
                         </a>
                     </li>
@@ -47,6 +52,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark shadow">
                             <li><a class="dropdown-item" href="/admin"><i class="fa-solid fa-gauge me-2"></i> Admin Dashboard</a></li>
+                            <li><a class="dropdown-item" href="/exams"><i class="fa-solid fa-calendar-days me-2"></i> Master Exam Schedule</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/admin/users"><i class="fa-solid fa-user-gear me-2"></i> Teacher Accounts</a></li>
                             <li><a class="dropdown-item" href="/admin/departments"><i class="fa-solid fa-building me-2"></i> Departments & Rooms</a></li>

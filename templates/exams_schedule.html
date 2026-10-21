@@ -1,0 +1,611 @@
+{% extends 'base.html' %}
+
+{% block title %}Examination Schedule | COE ExamAttend{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-2 mb-md-3">
+        <ol class="breadcrumb fs-7">
+            <li class="breadcrumb-item"><a href="/departments" class="text-decoration-none">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Institutional Exam Schedule</li>
+        </ol>
+    </nav>
+
+    <!-- Header Banner -->
+    <div class="card border-0 shadow-sm mb-3 mb-md-4 bg-white rounded-3">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span class="badge bg-navy text-white font-monospace px-2 py-1 fs-7">
+                            <i class="fa-solid fa-calendar-days me-1"></i> MASTER TIMETABLE
+                        </span>
+                        <span class="badge bg-light text-muted border fs-7">
+                            <i class="fa-regular fa-clock me-1"></i> Server IST: {{ get_ist_now().strftime('%d %b %Y, %I:%M %p') }}
+                        </span>
+                    </div>
+                    <h4 class="fw-bold mb-1 text-dark">Institutional Examination Schedule</h4>
+                    <p class="text-muted fs-7 mb-0">
+                        Complete institutional timetable across all academic departments, examination halls, and invigilator duties.
+                    </p>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
+                    {% if session.get('role') == 'ADMIN' %}
+                    <button class="btn btn-primary btn-sm px-3 fw-semibold flex-grow-1 flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#scheduleExamModal">
+                        <i class="fa-solid fa-plus me-1"></i> Schedule Exam Session
+                    </button>
+                    <a href="/admin/exams" class="btn btn-outline-secondary btn-sm px-3 flex-grow-1 flex-md-grow-0">
+                        <i class="fa-solid fa-sliders me-1"></i> COE Exam Management
+                    </a>
+                    {% endif %}
+                    <a href="/departments" class="btn btn-outline-secondary btn-sm px-3 flex-grow-1 flex-md-grow-0">
+                        <i class="fa-solid fa-building me-1"></i> View Departments
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Metric Counters -->
+    {% set total_exams = sessions|length %}
+    {% set active_exams = sessions|selectattr('time_window.status', 'equalto', 'ACTIVE')|list|length %}
+    {% set upcoming_exams = sessions|selectattr('time_window.status', 'equalto', 'UPCOMING')|list|length %}
+    {% set concluded_exams = sessions|selectattr('time_window.status', 'equalto', 'CONCLUDED')|list|length %}
+
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 rounded-3 text-center stat-card">
+                <div class="text-muted fs-7 fw-bold text-uppercase">Total Scheduled</div>
+                <h3 class="fw-bold mb-0 text-dark">{{ total_exams }}</h3>
+                <small class="text-muted fs-7">All Departments</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 rounded-3 text-center stat-card border-start border-success border-3">
+                <div class="text-success fs-7 fw-bold text-uppercase">Ready to Scan</div>
+                <h3 class="fw-bold mb-0 text-success">{{ active_exams }}</h3>
+                <small class="text-muted fs-7">Window Open Now</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 rounded-3 text-center stat-card border-start border-warning border-3">
+                <div class="text-warning-emphasis fs-7 fw-bold text-uppercase">Upcoming</div>
+                <h3 class="fw-bold mb-0 text-warning-emphasis">{{ upcoming_exams }}</h3>
+                <small class="text-muted fs-7">Scheduled Later</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm bg-white p-3 rounded-3 text-center stat-card border-start border-secondary border-3">
+                <div class="text-secondary fs-7 fw-bold text-uppercase">Concluded / Locked</div>
+                <h3 class="fw-bold mb-0 text-secondary">{{ concluded_exams }}</h3>
+                <small class="text-muted fs-7">Archived</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search Bar -->
+    <div class="card border-0 shadow-sm bg-white mb-3 mb-md-4 rounded-3">
+        <div class="card-body p-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input type="text" id="scheduleSearch" class="form-control border-start-0" placeholder="Search by subject code, name, room, or invigilator..." oninput="filterScheduleTable()">
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <select id="departmentFilter" class="form-select fs-7" onchange="filterScheduleTable()">
+                        <option value="">All Departments</option>
+                        {% for d in departments %}
+                        <option value="{{ d.code }}">{{ d.code }} - {{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <select id="statusFilter" class="form-select fs-7" onchange="filterScheduleTable()">
+                        <option value="">All Statuses</option>
+                        <option value="ACTIVE">Ready to Scan</option>
+                        <option value="UPCOMING">Upcoming</option>
+                        <option value="CONCLUDED">Concluded</option>
+                        <option value="LOCKED">Locked</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 text-md-end">
+                    <button class="btn btn-outline-secondary btn-sm w-100" onclick="resetScheduleFilters()">
+                        <i class="fa-solid fa-rotate-left me-1"></i> Reset Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheduled Examinations Table Card -->
+    <div class="card border-0 shadow-sm bg-white mb-4 rounded-3 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="fa-solid fa-table-list text-primary me-2"></i> All Scheduled Exam Sessions
+                <span id="filteredCountBadge" class="badge bg-primary text-white ms-2 font-monospace">{{ sessions|length }}</span>
+            </h6>
+            <span class="fs-7 text-muted d-none d-sm-inline">
+                Persistent Institutional Record &bull; Maintained by COE
+            </span>
+        </div>
+
+        <div class="card-body p-0">
+            {% if sessions %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="scheduleTable">
+                    <thead class="table-light fs-7 text-uppercase text-muted">
+                        <tr>
+                            <th class="ps-3 py-3">Subject / Course</th>
+                            <th class="py-3">Room / Hall</th>
+                            <th class="py-3">Date & Timings</th>
+                            <th class="py-3">Status</th>
+                            <th class="py-3">Enrolled Candidates</th>
+                            <th class="py-3">Assigned Invigilator</th>
+                            <th class="text-end pe-3 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="fs-7">
+                        {% for s in sessions %}
+                        <tr class="schedule-row" 
+                            data-search="{{ s.course_code }} {{ s.course_name }} {{ s.room_number }} {{ s.dept_code }} {{ s.invigilator_name }} {{ s.qp_code }}"
+                            data-dept="{{ s.dept_code }}"
+                            data-status="{{ s.time_window.status }}">
+                            
+                            <!-- Course / Subject -->
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-primary font-monospace fs-7">{{ s.course_code }}</span>
+                                    {% if s.dept_code %}
+                                    <span class="badge bg-light text-dark border font-monospace fs-7">{{ s.dept_code }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="fw-bold text-dark fs-6">{{ s.course_name }}</div>
+                                <div class="text-muted fs-7 font-monospace">QP: {{ s.qp_code }}</div>
+                            </td>
+
+                            <!-- Room / Hall -->
+                            <td>
+                                <div class="fw-bold text-dark fs-6 font-monospace">
+                                    <i class="fa-solid fa-door-open text-primary me-1"></i> {{ s.room_number }}
+                                </div>
+                                {% if s.building %}
+                                <div class="text-muted fs-7">{{ s.building }}</div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Date & Timings -->
+                            <td>
+                                <div class="fw-semibold text-dark">
+                                    <i class="fa-regular fa-calendar me-1 text-secondary"></i> {{ s.exam_date }}
+                                </div>
+                                <div class="text-muted">
+                                    <i class="fa-regular fa-clock me-1 text-secondary"></i> {{ s.time_window.start_display }} - {{ s.time_window.end_display }} IST
+                                </div>
+                            </td>
+
+                            <!-- Status Badge -->
+                            <td>
+                                {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' %}
+                                    <span class="badge bg-danger text-white fs-7 px-2 py-1">
+                                        <i class="fa-solid fa-lock me-1"></i> LOCKED
+                                    </span>
+                                {% elif s.time_window.status == 'ACTIVE' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-7 px-2 py-1">
+                                        <i class="fa-solid fa-qrcode me-1"></i> READY TO SCAN
+                                    </span>
+                                {% elif s.time_window.status == 'UPCOMING' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-7 px-2 py-1" title="{{ s.time_window.message }}">
+                                        <i class="fa-regular fa-clock me-1"></i> {{ s.time_window.badge_text }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border fs-7 px-2 py-1">
+                                        <i class="fa-solid fa-hourglass-end me-1"></i> CONCLUDED
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Candidates Enrolled & Attendance Progress -->
+                            <td style="min-width: 170px;">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <span class="fw-semibold text-dark">
+                                        {{ s.present_count }}/{{ s.total_students }} Present
+                                    </span>
+                                    <span class="text-muted fs-7 font-monospace">
+                                        {{ s.completion_pct }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar {% if s.completion_pct == 100 %}bg-success{% elif s.completion_pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+                                         role="progressbar" style="width: {{ s.completion_pct }}%;"></div>
+                                </div>
+                                <div class="text-muted fs-7 mt-1">
+                                    {{ s.absent_count }} Absent &bull; {{ s.pending_count }} Pending
+                                </div>
+                            </td>
+
+                            <!-- Assigned Invigilator -->
+                            <td>
+                                <div class="fw-semibold text-dark">{{ s.invigilator_name }}</div>
+                                <div class="text-muted fs-7 font-monospace">ID: {{ s.invigilator_id }}</div>
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="text-end pe-3">
+                                <div class="d-flex align-items-center justify-content-end gap-1">
+                                    <!-- Scan / View Roster Button -->
+                                    {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' or s.time_window.status == 'CONCLUDED' %}
+                                        <a href="/sessions/{{ s.id }}/roster" class="btn btn-outline-secondary btn-sm px-2 py-1 fs-7" title="View Finalized Roster">
+                                            <i class="fa-solid fa-eye me-1"></i> View
+                                        </a>
+                                    {% elif s.time_window.status == 'UPCOMING' %}
+                                        {% if session.get('role') == 'ADMIN' %}
+                                        <a href="/sessions/{{ s.id }}/roster" class="btn btn-warning btn-sm px-2 py-1 fs-7 fw-semibold" title="Admin Early Scan Override">
+                                            <i class="fa-solid fa-camera me-1"></i> Scan (Admin)
+                                        </a>
+                                        {% else %}
+                                        <a href="/sessions/{{ s.id }}/roster" class="btn btn-outline-secondary btn-sm px-2 py-1 fs-7" title="{{ s.time_window.message }}">
+                                            <i class="fa-regular fa-clock me-1"></i> Opens {{ s.time_window.start_display }}
+                                        </a>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="/sessions/{{ s.id }}/roster" class="btn btn-primary btn-sm px-2 py-1 fs-7 fw-semibold">
+                                            <i class="fa-solid fa-camera me-1"></i> Scan Roster
+                                        </a>
+                                    {% endif %}
+
+                                    <!-- Download Excel Report -->
+                                    <a href="/download_report/{{ s.id }}" class="btn btn-outline-success btn-sm px-2 py-1 fs-7" title="Download Official Excel Report">
+                                        <i class="fa-solid fa-file-excel"></i>
+                                    </a>
+
+                                    <!-- Admin Options (Edit & Remove) -->
+                                    {% if session.get('role') == 'ADMIN' %}
+                                    <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1 fs-7" title="Edit Schedule & Timings"
+                                            onclick="openEditScheduleModal({{ s.id }}, '{{ s.course_code }}', '{{ s.course_name }}', '{{ s.exam_date }}', '{{ s.start_time or '' }}', '{{ s.end_time or '' }}', '{{ s.room_number }}')">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1 fs-7" title="Remove / Clear Scheduled Exam"
+                                            onclick="confirmDeleteExam({{ s.id }}, '{{ s.course_code }}', '{{ s.room_number }}')">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <!-- Empty state -->
+            <div class="text-center py-5">
+                <div class="mb-3">
+                    <i class="fa-regular fa-calendar-xmark text-muted fa-3x"></i>
+                </div>
+                <h5 class="fw-bold text-dark">No Scheduled Examinations Found</h5>
+                <p class="text-muted fs-7 mb-3">There are currently no examinations scheduled in the institutional timetable.</p>
+                {% if session.get('role') == 'ADMIN' %}
+                <button class="btn btn-primary btn-sm px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#scheduleExamModal">
+                    <i class="fa-solid fa-plus me-1"></i> Schedule First Exam Session
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- No Search Results Notification (Hidden by default) -->
+            <div id="noSearchResults" class="text-center py-5 d-none">
+                <i class="fa-solid fa-filter-circle-xmark text-muted fa-3x mb-3"></i>
+                <h6 class="fw-bold text-dark">No Matching Examination Sessions</h6>
+                <p class="text-muted fs-7">Try adjusting your keyword search query or department/status filters.</p>
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetScheduleFilters()">Reset All Filters</button>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- Schedule Exam Session Modal (Administrator Only) -->
+{% if session.get('role') == 'ADMIN' %}
+<div class="modal fade" id="scheduleExamModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold"><i class="fa-solid fa-calendar-plus me-2"></i> Schedule Examination Session</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/exams/create_session">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Course / Subject Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace" name="course_code" placeholder="e.g. CS801" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Course Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="course_name" placeholder="e.g. Distributed Systems" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Department <span class="text-danger">*</span></label>
+                            <select class="form-select" name="department_id" required>
+                                {% for d in departments %}
+                                <option value="{{ d.id }}">{{ d.code }} - {{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room / Hall <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="room_number" placeholder="Type Room (e.g. CS101, Room 302)" list="classroomList" required>
+                            <datalist id="classroomList">
+                                {% for r in classrooms %}
+                                <option value="{{ r.room_number }}">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="exam_date" required value="{{ today_str }}">
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" name="start_time" required value="09:30">
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" name="end_time" required value="12:30">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Question Paper Barcode Series <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace" name="qp_code" placeholder="e.g. QP-2026-CS801-A" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Assigned Teacher / Invigilator <span class="text-danger">*</span></label>
+                        <select class="form-select" name="teacher_user_id" required>
+                            {% for t in teachers %}
+                            <option value="{{ t.id }}">{{ t.full_name }} ({{ t.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold">
+                        <i class="fa-solid fa-check me-1"></i> Save & Schedule Exam
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Schedule Modal (Administrator Only) -->
+<div class="modal fade" id="editScheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-navy text-white py-3">
+                <h6 class="modal-title fw-bold">
+                    <i class="fa-solid fa-pen text-primary me-2"></i> Edit Subject Exam Schedule
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editScheduleForm" onsubmit="submitEditSchedule(event)">
+                <input type="hidden" id="editSessionId" value="">
+                <div class="modal-body p-3 p-md-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Room Number / Hall <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editRoomNumberVal" placeholder="e.g. CS101, Room 302" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Subject Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control font-monospace" id="editCourseCode" required>
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Subject Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editCourseName" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-7 fw-bold text-muted text-uppercase">Exam Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="editExamDate" required>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">Start Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="editStartTime" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fs-7 fw-bold text-muted text-uppercase">End Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="editEndTime" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold" id="btnSubmitEditSchedule">
+                        <i class="fa-solid fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editModalInstance = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const editEl = document.getElementById('editScheduleModal');
+    if (editEl) {
+        editModalInstance = new bootstrap.Modal(editEl);
+    }
+});
+
+function openEditScheduleModal(sessionId, courseCode, courseName, examDate, startTime, endTime, roomNumber) {
+    document.getElementById('editSessionId').value = sessionId;
+    document.getElementById('editCourseCode').value = courseCode;
+    document.getElementById('editCourseName').value = courseName;
+    document.getElementById('editExamDate').value = examDate;
+    document.getElementById('editStartTime').value = startTime || '09:30';
+    document.getElementById('editEndTime').value = endTime || '12:30';
+    document.getElementById('editRoomNumberVal').value = roomNumber || '';
+    if (editModalInstance) {
+        editModalInstance.show();
+    }
+}
+
+function submitEditSchedule(e) {
+    e.preventDefault();
+    const sessionId = document.getElementById('editSessionId').value;
+    const roomNumber = document.getElementById('editRoomNumberVal').value.trim();
+    const code = document.getElementById('editCourseCode').value.trim();
+    const name = document.getElementById('editCourseName').value.trim();
+    const date = document.getElementById('editExamDate').value;
+    const start = document.getElementById('editStartTime').value;
+    const end = document.getElementById('editEndTime').value;
+
+    const btn = document.getElementById('btnSubmitEditSchedule');
+    btn.disabled = true;
+
+    fetch(`/api/session/${sessionId}/update_schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            room_number: roomNumber,
+            course_code: code,
+            course_name: name,
+            exam_date: date,
+            start_time: start,
+            end_time: end
+        })
+    })
+    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+    .then(({ status, body }) => {
+        if (status === 200 && body.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Schedule Updated!',
+                text: body.message,
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.reload();
+            });
+        } else {
+            Swal.fire('Error', body.message || 'Could not update schedule.', 'error');
+        }
+    })
+    .catch(() => {
+        Swal.fire('Network Error', 'Failed to update schedule.', 'error');
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+}
+
+function confirmDeleteExam(sessionId, courseCode, roomNumber) {
+    Swal.fire({
+        title: 'Remove Scheduled Exam?',
+        text: `Are you sure you want to remove the scheduled examination for ${courseCode} (${roomNumber})? This will permanently clear it from the schedule.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Remove Exam'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/admin/exams/${sessionId}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Exam Removed',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.message || 'Could not remove exam.', 'error');
+                }
+            })
+            .catch(() => {
+                Swal.fire('Network Error', 'Failed to communicate with server.', 'error');
+            });
+        }
+    });
+}
+
+function filterScheduleTable() {
+    const query = (document.getElementById('scheduleSearch').value || '').toLowerCase().trim();
+    const dept = (document.getElementById('departmentFilter').value || '').trim();
+    const status = (document.getElementById('statusFilter').value || '').trim();
+
+    const rows = document.querySelectorAll('.schedule-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const rowSearch = (row.getAttribute('data-search') || '').toLowerCase();
+        const rowDept = row.getAttribute('data-dept') || '';
+        const rowStatus = row.getAttribute('data-status') || '';
+
+        const matchesQuery = !query || rowSearch.includes(query);
+        const matchesDept = !dept || rowDept === dept;
+        const matchesStatus = !status || rowStatus === status;
+
+        if (matchesQuery && matchesDept && matchesStatus) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const badge = document.getElementById('filteredCountBadge');
+    if (badge) badge.textContent = visibleCount;
+
+    const noResults = document.getElementById('noSearchResults');
+    if (noResults) {
+        if (visibleCount === 0 && rows.length > 0) {
+            noResults.classList.remove('d-none');
+        } else {
+            noResults.classList.add('d-none');
+        }
+    }
+}
+
+function resetScheduleFilters() {
+    document.getElementById('scheduleSearch').value = '';
+    document.getElementById('departmentFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterScheduleTable();
+}
+</script>
+{% endblock %}
