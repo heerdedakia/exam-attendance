@@ -17,6 +17,7 @@
 </head>
 <body class="bg-light d-flex flex-column min-vh-100">
 
+    {% if session.get('user_id') %}
     <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-navy shadow-sm sticky-top">
         <div class="container-fluid px-3 px-md-4">
@@ -24,7 +25,7 @@
                 <div class="brand-icon-box">
                     <i class="fa-solid fa-barcode text-primary"></i>
                 </div>
-                <span>COE ExamAttend <span class="badge bg-warning text-dark font-monospace fs-7">v2.5</span></span>
+                <span>COE ExamAttend</span>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
@@ -32,7 +33,6 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navMenu">
-                {% if session.get('user_id') %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1 ms-lg-3">
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/exams' %}active fw-semibold text-white{% endif %}" href="/exams">
@@ -76,17 +76,11 @@
                             <i class="fa-solid fa-clock-rotate-left me-1"></i> Audit Trail
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/sample_barcodes' %}active fw-semibold text-white{% endif %}" href="/sample_barcodes">
-                            <i class="fa-solid fa-print me-1"></i> Sample Barcodes
-                        </a>
-                    </li>
+
                 </ul>
 
                 <div class="d-flex align-items-center flex-wrap gap-2 mt-2 mt-lg-0">
-                    <span id="connectionBadge" class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">
-                        <i class="fa-solid fa-circle-dot me-1"></i> Online
-                    </span>
+
 
                     <!-- User Profile & Logout -->
                     <div class="dropdown">
@@ -115,18 +109,10 @@
                         </ul>
                     </div>
                 </div>
-                {% else %}
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link text-white fw-semibold" href="/login">
-                            <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Login Portal
-                        </a>
-                    </li>
-                </ul>
-                {% endif %}
             </div>
         </div>
     </nav>
+    {% endif %}
 
     <!-- Offline Notification Banner -->
     <div id="offlineNotice" class="alert alert-danger mb-0 rounded-0 text-center py-2 d-none shadow-sm" role="alert">
@@ -267,20 +253,10 @@
     <script>
         // Automatic connectivity monitoring
         window.addEventListener('online', () => {
-            const badge = document.getElementById('connectionBadge');
-            if (badge) {
-                badge.className = 'badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2';
-                badge.innerHTML = '<i class="fa-solid fa-circle-dot me-1"></i> Online';
-            }
             document.getElementById('offlineNotice')?.classList.add('d-none');
         });
 
         window.addEventListener('offline', () => {
-            const badge = document.getElementById('connectionBadge');
-            if (badge) {
-                badge.className = 'badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-2';
-                badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Offline';
-            }
             document.getElementById('offlineNotice')?.classList.remove('d-none');
         });
     </script>

@@ -2041,6 +2041,13 @@ def admin_exam_delete(session_id):
         c_code = sess['course_code']
         room_num = sess['room_number']
 
+        # Release any booklets assigned to this session in booklet_registry
+        cursor.execute('''
+            UPDATE booklet_registry 
+            SET status = 'AVAILABLE', assigned_session_id = NULL, assigned_usn = NULL, assigned_at = NULL 
+            WHERE assigned_session_id = ?
+        ''', (session_id,))
+
         # Delete linked students in this session
         cursor.execute('DELETE FROM students WHERE session_id = ?', (session_id,))
         # Delete verification logs for this session
@@ -2654,7 +2661,7 @@ def evaluator_view():
 
 @app.route('/sample_barcodes')
 def sample_barcodes():
-    return render_template('sample_barcodes.html')
+    return redirect(url_for('all_exams_schedule'))
 
 
 @app.route('/api/evaluator/verify', methods=['POST'])
