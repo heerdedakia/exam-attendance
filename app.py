@@ -1883,6 +1883,9 @@ def admin_exams_list():
     ''')
     sessions = [dict(row) for row in cursor.fetchall()]
 
+    for s in sessions:
+        s['time_window'] = get_session_window_status(s)
+
     cursor.execute('SELECT id, code, name FROM departments ORDER BY code ASC')
     departments = [dict(row) for row in cursor.fetchall()]
 
@@ -2608,6 +2611,8 @@ def admin_reports_view():
         ORDER BY s.id DESC
     ''')
     sessions = [dict(row) for row in cursor.fetchall()]
+    for s in sessions:
+        s['time_window'] = get_session_window_status(s)
     conn.close()
     return render_template('admin/admin_reports.html', sessions=sessions)
 

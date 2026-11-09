@@ -71,10 +71,14 @@
                             </td>
                             <td>
                                 {% if s.status == 'LOCKED' or s.status == 'SUBMITTED' %}
-                                    <span class="badge bg-danger text-white fs-7"><i class="fa-solid fa-lock me-1"></i> LOCKED</span>
+                                    <span class="badge bg-danger text-white fs-7 px-2 py-1"><i class="fa-solid fa-lock me-1"></i> LOCKED</span>
                                     <div class="text-muted fs-7 mt-1">{{ s.locked_at[:16] if s.locked_at else '' }}</div>
+                                {% elif s.time_window and s.time_window.status == 'ACTIVE' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-7 px-2 py-1"><i class="fa-solid fa-circle-play me-1"></i> IN PROGRESS</span>
+                                {% elif s.time_window and s.time_window.status == 'UPCOMING' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-7 px-2 py-1" title="{{ s.time_window.message }}"><i class="fa-regular fa-clock me-1"></i> {{ s.time_window.badge_text }}</span>
                                 {% else %}
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-7">IN PROGRESS</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border fs-7 px-2 py-1"><i class="fa-solid fa-hourglass-end me-1"></i> CONCLUDED</span>
                                 {% endif %}
                             </td>
                             <td class="text-end pe-3">

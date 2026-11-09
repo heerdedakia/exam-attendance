@@ -28,6 +28,10 @@
                             <span class="badge bg-danger text-white px-2 py-1 fs-7">
                                 <i class="fa-solid fa-lock me-1"></i> LOCKED
                             </span>
+                        {% elif session_data.time_window and session_data.time_window.status == 'CONCLUDED' %}
+                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fs-7">
+                                <i class="fa-solid fa-hourglass-end me-1"></i> CONCLUDED
+                            </span>
                         {% else %}
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-7">
                                 <i class="fa-solid fa-pen-to-square me-1"></i> IN PROGRESS
@@ -42,10 +46,6 @@
                         {% elif session_data.time_window.status == 'UPCOMING' %}
                             <span class="badge bg-warning text-dark px-2 py-1 fs-7">
                                 <i class="fa-regular fa-clock me-1"></i> OPENS AT {{ session_data.time_window.start_display }}
-                            </span>
-                        {% else %}
-                            <span class="badge bg-secondary text-white px-2 py-1 fs-7">
-                                <i class="fa-solid fa-ban me-1"></i> WINDOW CONCLUDED
                             </span>
                         {% endif %}
                         {% if session.get('role') == 'ADMIN' and not session_data.time_window.is_open %}
